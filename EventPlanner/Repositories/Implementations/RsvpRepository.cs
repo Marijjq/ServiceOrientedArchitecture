@@ -1,0 +1,43 @@
+﻿using EventPlanner.Data;
+using EventPlanner.Models;
+using EventPlanner.Repositories.Interfaces;
+using Microsoft.EntityFrameworkCore;
+
+namespace EventPlanner.Repositories.Implementations
+{
+    public class RsvpRepository : IRsvpRepository
+    {
+        private readonly ApplicationDbContext _context;
+        public RsvpRepository(ApplicationDbContext context)
+        {
+            _context = context;
+        }
+        public async Task<RSVP> GetRsvpByIdAsync(int rsvpId)
+        {
+            return await _context.RSVPs.FindAsync(rsvpId);
+        }
+        public async Task<IEnumerable<RSVP>> GetAllRsvpsAsync()
+        {
+            return await _context.RSVPs.ToListAsync();
+        }
+        public async Task AddRsvpAsync(RSVP rsvp)
+        {
+            await _context.RSVPs.AddAsync(rsvp);
+            await _context.SaveChangesAsync();
+        }
+        public async Task UpdateRsvpAsync(RSVP rsvp)
+        {
+            _context.RSVPs.Update(rsvp);
+            await _context.SaveChangesAsync();
+        }
+        public async Task DeleteRsvpAsync(int rsvpId)
+        {
+            var rsvp = await GetRsvpByIdAsync(rsvpId);
+            if (rsvp != null)
+            {
+                _context.RSVPs.Remove(rsvp);
+                await _context.SaveChangesAsync();
+            }
+        }
+    }
+}
