@@ -40,5 +40,12 @@ namespace EventPlanner.Repositories.Implementations
                 await _context.SaveChangesAsync();
             }
         }
+
+        // Additional
+        public async Task<User> GetUserByEmailAsync(string email)
+        {
+            return await _context.Users
+                .FirstOrDefaultAsync(u => u.Email == email);
+        }
     }
 }

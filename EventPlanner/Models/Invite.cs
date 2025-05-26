@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using EventPlanner.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace EventPlanner.Models
 {
@@ -7,20 +8,30 @@ namespace EventPlanner.Models
         [Key]
         public int Id { get; set; }
 
-        [Required, MaxLength(20)]
-        public string Status { get; set; }
+        [Required]
+        public InviteStatus Status { get; set; } = InviteStatus.Pending;
 
         [Required]
-        public DateTime InviteDate { get; set; }
+        public DateTime SentAt { get; set; } = DateTime.UtcNow;
+
+        public DateTime? RespondedAt { get; set; }
+
+        public string? Message { get; set; }
 
         [Required]
-        public DateTime ResponseDate { get; set; }
+        public int InviterId { get; set; }
+        public virtual User Inviter { get; set; }
 
         [Required]
-        public int UserId { get; set; }
-        public User User { get; set; }
+        public int InviteeId { get; set; }
+        public virtual User Invitee { get; set; }
+
         [Required]
         public int EventId { get; set; }
-        public Event Event { get; set; }
+        public virtual Event Event { get; set; }
+
+        // Optional
+        public DateTime? ExpiresAt { get; set; }
+
     }
 }

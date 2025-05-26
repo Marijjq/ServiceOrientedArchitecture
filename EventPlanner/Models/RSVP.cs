@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using EventPlanner.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace EventPlanner.Models
 {
@@ -7,11 +8,10 @@ namespace EventPlanner.Models
         [Key]
         public int Id { get; set; }
 
-        [Required, MaxLength(20)]
-        public string Status { get; set; } // e.g., "Accepted", "Declined", "Maybe"
-
         [Required]
-        public DateTime ResponseDate { get; set; }
+        public RSVPStatus Status { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
 
         [Required]
         public int UserId { get; set; }

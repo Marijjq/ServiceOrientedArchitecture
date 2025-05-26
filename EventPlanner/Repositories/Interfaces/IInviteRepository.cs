@@ -1,4 +1,5 @@
-﻿using EventPlanner.Models;
+﻿using EventPlanner.Enums;
+using EventPlanner.Models;
 
 namespace EventPlanner.Repositories.Interfaces
 {
@@ -9,5 +10,11 @@ namespace EventPlanner.Repositories.Interfaces
         Task AddInviteAsync(Invite invite);
         Task UpdateInviteAsync(Invite invite);
         Task DeleteInviteAsync(int inviteId);
+
+        //Additional
+        Task<IEnumerable<Invite>> GetPendingInvitesByUserIdAsync(int userId);
+        Task<Invite?> GetByInviteeAndEventAsync(int inviteeId, int eventId);
+
+
     }
 }

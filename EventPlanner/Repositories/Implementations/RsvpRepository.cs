@@ -39,5 +39,22 @@ namespace EventPlanner.Repositories.Implementations
                 await _context.SaveChangesAsync();
             }
         }
+
+        // Additional 
+        public async Task<IEnumerable<RSVP>> GetRsvpByEventIdAsync(int eventId)
+        {
+            return await _context.RSVPs
+                .Where(r => r.EventId == eventId)
+                .ToListAsync();
+        }
+
+        public async Task<IEnumerable<RSVP>> GetRsvpsByUserIdAsync(int userId)
+        {
+            return await _context.RSVPs
+                .Where(r => r.UserId == userId)
+                .ToListAsync();
+        }
+
+
     }
 }

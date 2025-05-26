@@ -24,6 +24,8 @@ namespace EventPlanner.Models
 
         [Required, MaxLength(50)]
         public string Role { get; set; } = "User"; // Default role is User
+
+        [Phone]
         public string PhoneNumber { get; set; }
 
         public List<Event> Events { get; set; } = new();

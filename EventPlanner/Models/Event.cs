@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using EventPlanner.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace EventPlanner.Models
 {
@@ -32,5 +33,9 @@ namespace EventPlanner.Models
 
         public List<RSVP> RSVPs { get; set; } = new();
         public List<Invite> Invites { get; set; } = new();
+
+        public EventStatus Status { get; set; } = EventStatus.Upcoming; // Default status
+        public int MaxParticipants { get; set; } // Maximum number of participants
+
     }
 }

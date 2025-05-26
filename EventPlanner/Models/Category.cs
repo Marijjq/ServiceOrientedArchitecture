@@ -13,5 +13,9 @@ namespace EventPlanner.Models
         [MaxLength(200)]
         public string Description { get; set; }
         public List<Event> Events { get; set; } = new();
+
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+
     }
 }

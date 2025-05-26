@@ -9,5 +9,8 @@ namespace EventPlanner.Repositories.Interfaces
         Task AddUserAsync(User user);
         Task UpdateUserAsync(User user);
         Task DeleteUserAsync(int userId);
+
+        //Additional
+        Task<User> GetUserByEmailAsync(string username);
     }
 }
