@@ -36,17 +36,27 @@ namespace EventPlanner.Services.Implementations
             await _userRepository.AddUserAsync(user);
             return _mapper.Map<UserDTO>(user);
         }
-        public async Task<UserDTO> UpdateUserAsync(int userId, UserUpdateDTO userDto)
+        public async Task<UserDTO> UpdateUserAsync(int userId, UserUpdateDTO userDto, int loggedInUserId)
         {
+            if (userId != loggedInUserId)
+            {
+                throw new UnauthorizedAccessException("You can only update your own user information.");
+            }
+
             var existingUser = await _userRepository.GetUserByIdAsync(userId);
             if (existingUser == null)
             {
                 throw new ArgumentException("User not found.");
             }
-            var user = _mapper.Map<User>(userDto);
-            await _userRepository.UpdateUserAsync(user);
-            return _mapper.Map<UserDTO>(user);
+
+            // Map changes from DTO to the existing user entity
+            _mapper.Map(userDto, existingUser);
+
+            await _userRepository.UpdateUserAsync(existingUser);
+
+            return _mapper.Map<UserDTO>(existingUser);
         }
+
         public async Task DeleteUserAsync(int userId)
         {
             await _userRepository.DeleteUserAsync(userId);

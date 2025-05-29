@@ -1,12 +1,14 @@
 ﻿using EventPlanner.DTOs.RSVP;
 using EventPlanner.Enums;
 using EventPlanner.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventPlanner.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class RsvpController : ControllerBase
     {
         private readonly IRsvpService _rsvpService;
@@ -77,6 +79,8 @@ namespace EventPlanner.Controllers
         }
 
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin,Organizer")]
+
         public async Task<IActionResult> Delete(int id)
         {
             try

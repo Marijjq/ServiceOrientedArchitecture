@@ -1,11 +1,13 @@
 ﻿using EventPlanner.DTOs.Invite;
 using EventPlanner.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventPlanner.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class InviteController : ControllerBase
     {
         private readonly IInviteService _inviteService;
@@ -17,6 +19,8 @@ namespace EventPlanner.Controllers
 
         // Get all invites
         [HttpGet]
+        [Authorize(Roles = "Admin,Organizer")]
+
         public async Task<IActionResult> GetAllInvites()
         {
             var invites = await _inviteService.GetAllInvitesAsync();
@@ -25,6 +29,8 @@ namespace EventPlanner.Controllers
 
         // Get invite by ID
         [HttpGet("{id}")]
+        [Authorize(Roles = "Admin,Organizer")]
+
         public async Task<IActionResult> GetInviteById(int id)
         {
             var invite = await _inviteService.GetInviteByIdAsync(id);
@@ -36,6 +42,7 @@ namespace EventPlanner.Controllers
 
         // Send (create) an invite
         [HttpPost]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<IActionResult> SendInvite([FromBody] InviteCreateDTO inviteDto)
         {
             try
@@ -51,6 +58,7 @@ namespace EventPlanner.Controllers
 
         // Update an invite
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<IActionResult> UpdateInvite(int id, [FromBody] InviteUpdateDTO inviteDto)
         {
             // Removed the ID check since InviteUpdateDTO does not have an Id property
@@ -67,6 +75,7 @@ namespace EventPlanner.Controllers
 
         // Delete an invite
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteInvite(int id)
         {
             try
@@ -82,11 +91,21 @@ namespace EventPlanner.Controllers
 
         // Get pending invites for a user
         [HttpGet("user/{userId}/pending")]
+        [Authorize]
         public async Task<IActionResult> GetPendingInvitesByUserId(int userId)
         {
+            var currentUser = HttpContext.User;
+            var currentUserId = currentUser.FindFirst("id")?.Value;
+            var isAdmin = currentUser.IsInRole("Admin");
+            var isOrganizer = currentUser.IsInRole("Organizer");
+
+            if (currentUserId != userId.ToString() && !isAdmin && !isOrganizer)
+            {
+                return Forbid();
+            }
+
             var invites = await _inviteService.GetPendingInvitesByUserIdAsync(userId);
             return Ok(invites);
         }
-
     }
 }

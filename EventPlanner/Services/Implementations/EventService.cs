@@ -185,15 +185,22 @@ namespace EventPlanner.Services.Implementations
                 .Where(e => e.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
         }
 
-        public async Task ToggleEventStatusAsync(int id, EventStatus status)
+        public async Task ToggleEventStatusAsync(int id, EventStatus status, int userId)
         {
             var eventItem = await _eventRepository.GetEventByIdAsync(id);
             if (eventItem == null)
                 throw new ArgumentException("Event not found.");
-            eventItem.Status=status;
-       
 
+            // Check if user is owner
+            if (eventItem.UserId != userId)
+            {
+                // Optional: You could inject a UserService to check roles if needed
+                throw new UnauthorizedAccessException("You are not authorized to change this event's status.");
+            }
+
+            eventItem.Status = status;
             await _eventRepository.UpdateEventAsync(eventItem);
         }
+
     }
 }

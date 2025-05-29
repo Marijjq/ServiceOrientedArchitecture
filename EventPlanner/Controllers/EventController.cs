@@ -43,8 +43,13 @@ namespace EventPlanner.Controllers
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<EventDTO>> CreateEvent([FromBody] EventCreateDTO eventItem)
         {
-            // Replace with actual user ID from authentication context
-            var userId = 1;
+            var userIdClaim = User.FindFirst("id");
+            if (userIdClaim == null)
+            {
+                return Unauthorized("User ID not found.");
+            }
+            int userId = int.Parse(userIdClaim.Value);
+
             try
             {
                 var createdEvent = await _eventService.CreateEventAsync(eventItem, userId);
@@ -60,13 +65,19 @@ namespace EventPlanner.Controllers
             }
         }
 
+
         // PUT: api/event/{id}
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<EventDTO>> UpdateEvent(int id, [FromBody] EventUpdateDTO eventItem)
         {
-            // Replace with actual user ID from authentication context
-            var userId = 1;
+            var userIdClaim = User.FindFirst("id");
+            if (userIdClaim == null)
+            {
+                return Unauthorized("User ID not found.");
+            }
+            int userId = int.Parse(userIdClaim.Value);
+
             try
             {
                 var updatedEvent = await _eventService.UpdateEventAsync(id, eventItem, userId);
@@ -85,6 +96,7 @@ namespace EventPlanner.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
 
         // DELETE: api/event/{id}
         [HttpDelete("{id}")]
@@ -138,14 +150,25 @@ namespace EventPlanner.Controllers
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<IActionResult> ToggleEventStatus(int id, EventStatus status)
         {
+            var userIdClaim = User.FindFirst("id");
+            if (userIdClaim == null)
+            {
+                return Unauthorized("User ID not found.");
+            }
+            int userId = int.Parse(userIdClaim.Value);
+
             try
             {
-                await _eventService.ToggleEventStatusAsync(id, status);
+                await _eventService.ToggleEventStatusAsync(id, status, userId);
                 return NoContent();
             }
             catch (ArgumentException ex)
             {
                 return NotFound(ex.Message);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
             }
             catch (InvalidOperationException ex)
             {
@@ -156,6 +179,7 @@ namespace EventPlanner.Controllers
                 return StatusCode(500, $"Internal server error: {ex.Message}");
             }
         }
+
         // GET: api/event/upcoming
         [HttpGet("upcoming")]
         [AllowAnonymous]

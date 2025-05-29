@@ -1,11 +1,13 @@
 ﻿using EventPlanner.DTOs.User;
 using EventPlanner.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EventPlanner.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -17,6 +19,7 @@ namespace EventPlanner.Controllers
 
         // GET: api/user
         [HttpGet]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<IEnumerable<UserDTO>>> GetAllUsers()
         {
             var users = await _userService.GetAllUsersAsync();
@@ -45,24 +48,46 @@ namespace EventPlanner.Controllers
 
         // PUT: api/user/{id}
         [HttpPut("{id}")]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] UserUpdateDTO user)
+        [Authorize]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UserUpdateDTO userDto)
         {
-            var updatedUser = await _userService.UpdateUserAsync(id, user);
-            if (updatedUser == null)
-                return NotFound("User not found.");
-            return NoContent();
+            var loggedInUserId = int.Parse(User.FindFirst("id")?.Value);
+
+            try
+            {
+                var updatedUser = await _userService.UpdateUserAsync(id, userDto, loggedInUserId);
+                return NoContent();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ex.Message);
+            }
         }
+
 
         // DELETE: api/user/{id}
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(int id)
         {
+            if (!User.IsInRole("Admin"))
+                return Forbid();
+
             await _userService.DeleteUserAsync(id);
             return NoContent();
         }
 
         // GET: api/user/email/{email}
         [HttpGet("email/{email}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserDTO>> GetUserByEmail(string email)
         {
             var user = await _userService.GetUserByEmailAsync(email);

@@ -9,7 +9,7 @@ namespace EventPlanner.Models
         public int Id { get; set; }
 
         [Required]
-        public RSVPStatus Status { get; set; }
+        public RSVPStatus Status { get; set; } = RSVPStatus.Pending;
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
 

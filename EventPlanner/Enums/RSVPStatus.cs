@@ -2,6 +2,7 @@
 {
     public enum RSVPStatus
     {
+            Pending,
             Accepted,
             Declined,
             Maybe

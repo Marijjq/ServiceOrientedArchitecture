@@ -21,7 +21,7 @@ namespace EventPlanner.Services.Interfaces
         Task<int> GetRemainingSpotsAsync(int id, int participants);
         Task<IEnumerable<EventDTO>> GetUpcomingEventsAsync();
         Task<IEnumerable<EventDTO>> SearchEventsByTitleAsync(string keyword);
-        Task ToggleEventStatusAsync(int id, EventStatus status);
+        Task ToggleEventStatusAsync(int id, EventStatus status, int userId);
 
 
 
