@@ -1,5 +1,6 @@
 ﻿using EventPlanner.DTOs.RSVP;
 using EventPlanner.Enums;
+using EventPlanner.Services.Implementations;
 using EventPlanner.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,13 +13,16 @@ namespace EventPlanner.Controllers
     public class RsvpController : ControllerBase
     {
         private readonly IRsvpService _rsvpService;
+        private readonly IUserService _userService;
 
-        public RsvpController(IRsvpService rsvpService)
+        public RsvpController(IRsvpService rsvpService, IUserService userService)
         {
             _rsvpService = rsvpService;
+            _userService=userService;
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,Organizer")]
         public async Task<IActionResult> GetAllRsvps()
         {
             var rsvps = await _rsvpService.GetAllRsvpsAsync();
@@ -45,6 +49,13 @@ namespace EventPlanner.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            var currentUserId = User.FindFirst("id")?.Value;
+            if (currentUserId == null)
+                return Unauthorized();
+
+            // Override DTO's UserId with current user's ID
+            rsvpDto.UserId = currentUserId;
+
             try
             {
                 var created = await _rsvpService.CreateRsvpAsync(rsvpDto);
@@ -54,11 +65,8 @@ namespace EventPlanner.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
-            catch (InvalidOperationException ex)
-            {
-                return Conflict(new { message = ex.Message });
-            }
         }
+
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] RsvpUpdateDTO rsvpDto)
@@ -97,14 +105,38 @@ namespace EventPlanner.Controllers
         [HttpPatch("{id}/status")]
         public async Task<IActionResult> UpdateStatus(int id, [FromQuery] RSVPStatus status)
         {
+            var currentUserId = User.FindFirst("id")?.Value;
+            if (currentUserId == null)
+            {
+                return Unauthorized();
+            }
+
             try
             {
+                // Get RSVP and validate ownership
+                var rsvp = await _rsvpService.GetRsvpByIdAsync(id);
+                if (rsvp == null)
+                {
+                    return NotFound(new { message = "RSVP not found." });
+                }
+
+                // Authorization check
+                if (rsvp.UserId != currentUserId && !await _userService.IsAdminAsync(currentUserId))
+                {
+                    return Forbid();
+                }
+
+                // Update status
                 var result = await _rsvpService.UpdateStatusAsync(id, status);
                 return Ok(new { success = result });
             }
             catch (ArgumentException ex)
             {
                 return NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
             }
             catch (Exception ex)
             {
@@ -122,6 +154,10 @@ namespace EventPlanner.Controllers
         [HttpGet("user/{userId}")]
         public async Task<IActionResult> GetByUser(int userId)
         {
+            var currentUserId = User.FindFirst("id")?.Value;
+            if (userId.ToString() != currentUserId && !User.IsInRole("Admin") && !User.IsInRole("Organizer"))
+                return Forbid();
+
             var result = await _rsvpService.GetRsvpsByUserIdAsync(userId);
             return Ok(result);
         }

@@ -48,17 +48,17 @@ namespace EventPlanner.Repositories.Implementations
             }
         }
         //Additional
-        public async Task<IEnumerable<Invite>> GetPendingInvitesByUserIdAsync(int userId)
+        public async Task<IEnumerable<Invite>> GetPendingInvitesByUserIdAsync(string userId)
         {
             return await _context.Invites
-                .Where(i => i.InviteeId == userId && i.Status == InviteStatus.Pending)
+                .Where(i => i.InviteeId == userId.ToString() && i.Status == InviteStatus.Pending)
                 .ToListAsync();
         }
 
-        public async Task<Invite?> GetByInviteeAndEventAsync(int inviteeId, int eventId)
+        public async Task<Invite?> GetByInviteeAndEventAsync(string inviteeId, int eventId)
         {
             return await _context.Invites
-                .FirstOrDefaultAsync(i => i.InviteeId == inviteeId && i.EventId == eventId);
+                .FirstOrDefaultAsync(i => i.InviteeId == inviteeId.ToString() && i.EventId == eventId);
         }
 
     }

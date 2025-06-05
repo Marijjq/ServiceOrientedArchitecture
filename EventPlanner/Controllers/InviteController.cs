@@ -29,8 +29,6 @@ namespace EventPlanner.Controllers
 
         // Get invite by ID
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,Organizer")]
-
         public async Task<IActionResult> GetInviteById(int id)
         {
             var invite = await _inviteService.GetInviteByIdAsync(id);
@@ -91,8 +89,7 @@ namespace EventPlanner.Controllers
 
         // Get pending invites for a user
         [HttpGet("user/{userId}/pending")]
-        [Authorize]
-        public async Task<IActionResult> GetPendingInvitesByUserId(int userId)
+        public async Task<IActionResult> GetPendingInvitesByUserId(string userId)
         {
             var currentUser = HttpContext.User;
             var currentUserId = currentUser.FindFirst("id")?.Value;

@@ -2,6 +2,7 @@
 using EventPlanner.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace EventPlanner.Controllers
 {
@@ -11,10 +12,13 @@ namespace EventPlanner.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
+       // private readonly IMemoryCache _cache;
+        //private const string AllProductsCacheKey = "AllUsersCache";
 
-        public UserController(IUserService userService)
+        public UserController(IUserService userService /*IMemoryCache cache*/)
         {
             _userService = userService;
+            //_cache = cache;
         }
 
         // GET: api/user
@@ -28,16 +32,21 @@ namespace EventPlanner.Controllers
 
         // GET: api/user/{id}
         [HttpGet("{id}")]
-        public async Task<ActionResult<UserDTO>> GetUserById(int id)
+        public async Task<ActionResult<UserDTO>> GetUserById(string id)
         {
+            var currentUserId = User.FindFirst("id")?.Value;
+            if (id != currentUserId && !User.IsInRole("Admin"))
+                return Forbid();
+
             var user = await _userService.GetUserByIdAsync(id);
-            if (user == null)
-                return NotFound("User not found.");
+            if (user == null) return NotFound("User not found.");
             return Ok(user);
+
         }
 
         // POST: api/user
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserDTO>> CreateUser([FromBody] UserCreateDTO user)
         {
             if (user == null)
@@ -48,14 +57,12 @@ namespace EventPlanner.Controllers
 
         // PUT: api/user/{id}
         [HttpPut("{id}")]
-        [Authorize]
-        public async Task<IActionResult> UpdateUser(int id, [FromBody] UserUpdateDTO userDto)
+        public async Task<IActionResult> UpdateUser(string id, [FromBody] UserUpdateDTO userDto)
         {
-            var loggedInUserId = int.Parse(User.FindFirst("id")?.Value);
-
+            var currentUserId = User.FindFirst("id")?.Value;
             try
             {
-                var updatedUser = await _userService.UpdateUserAsync(id, userDto, loggedInUserId);
+                await _userService.UpdateUserAsync(id, userDto, currentUserId);
                 return NoContent();
             }
             catch (UnauthorizedAccessException ex)
@@ -66,20 +73,17 @@ namespace EventPlanner.Controllers
             {
                 return NotFound(ex.Message);
             }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ex.Message);
-            }
+
         }
 
 
         // DELETE: api/user/{id}
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> DeleteUser(int id)
+        public async Task<IActionResult> DeleteUser(string id)
         {
-            if (!User.IsInRole("Admin"))
-                return Forbid();
+            //if (!User.IsInRole("Admin"))
+            //    return Forbid();
 
             await _userService.DeleteUserAsync(id);
             return NoContent();

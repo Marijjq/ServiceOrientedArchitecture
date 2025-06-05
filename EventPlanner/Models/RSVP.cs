@@ -14,8 +14,8 @@ namespace EventPlanner.Models
         public DateTime? UpdatedAt { get; set; }
 
         [Required]
-        public int UserId { get; set; }
-        public User User { get; set; }
+        public string UserId { get; set; }
+        public ApplicationUser User { get; set; }
 
         [Required]
         public int EventId { get; set; }

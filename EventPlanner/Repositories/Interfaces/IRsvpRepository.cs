@@ -12,6 +12,6 @@ namespace EventPlanner.Repositories.Interfaces
 
         //Additional
         Task<IEnumerable<RSVP>> GetRsvpByEventIdAsync(int eventId);
-        Task<IEnumerable<RSVP>> GetRsvpsByUserIdAsync(int userId);
+        Task<IEnumerable<RSVP>> GetRsvpsByUserIdAsync(string userId);
     }
 }

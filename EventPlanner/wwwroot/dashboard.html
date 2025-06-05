@@ -1,0 +1,40 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <title>Event Planner Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="dashboard">
+        <nav>
+            <h2>Welcome, <span id="userName"></span> (<span id="userRole"></span>)</h2>
+            <button onclick="logout()">Logout</button>
+        </nav>
+
+        <div class="content">
+            <!-- Admin Section -->
+            <div id="adminSection" class="card" style="display:none;">
+                <h3>User Management <button onclick="loadUsers()">Refresh</button></h3>
+                <div id="usersTable"></div>
+            </div>
+
+            <!-- Organizer Section -->
+            <div id="organizerSection" class="card" style="display:none;">
+                <h3>My Events <button onclick="loadEvents()">Refresh</button></h3>
+                <div id="eventsTable"></div>
+                <h3>Invites <button onclick="loadInvites()">Refresh</button></h3>
+                <div id="invitesTable"></div>
+            </div>
+
+            <!-- User Section -->
+            <div id="userSection" class="card" style="display:none;">
+                <h3>My Events <button onclick="loadUserEvents()">Refresh</button></h3>
+                <div id="userEventsTable"></div>
+                <h3>My Invites <button onclick="loadUserInvites()">Refresh</button></h3>
+                <div id="userInvitesTable"></div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
+</body>
+</html>

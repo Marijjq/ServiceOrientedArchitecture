@@ -95,11 +95,14 @@ namespace EventPlanner.Controllers
             var userRoles = await _userManager.GetRolesAsync(user);
 
             var authClaims = new List<Claim>
-            {
-                new Claim(ClaimTypes.Name, user.UserName),
-                new Claim(ClaimTypes.NameIdentifier, user.Id),  // <-- Added user ID claim here
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
+                {
+                    new Claim(ClaimTypes.Name, user.UserName),
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), // Convert 'user.Id' to string
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                };
+
+            var userIdClaim = new Claim(ClaimTypes.NameIdentifier, user.Id.ToString());
+
 
             foreach (var role in userRoles)
             {
@@ -146,6 +149,7 @@ namespace EventPlanner.Controllers
 
             return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Role creation failed.", errors = result.Errors.Select(e => e.Description) });
         }
+
         [Authorize(Roles = "Admin")]
         [HttpPost("assign-role")]
         public async Task<IActionResult> AssignRoleToUser([FromBody] UserRoleAssignmentDTO dto)
@@ -153,18 +157,6 @@ namespace EventPlanner.Controllers
             if (string.IsNullOrWhiteSpace(dto.UserId) || string.IsNullOrWhiteSpace(dto.RoleName))
             {
                 return BadRequest("UserId and RoleName are required.");
-            }
-
-            // Extra safety: prevent even Admins from assigning the Admin role unless truly authorized
-            if (dto.RoleName == "Admin")
-            {
-                var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                var currentUser = await _userManager.FindByIdAsync(currentUserId);
-
-                if (currentUser == null || !await _userManager.IsInRoleAsync(currentUser, "Admin"))
-                {
-                    return Forbid("Only admins can assign the Admin role.");
-                }
             }
 
             var user = await _userManager.FindByIdAsync(dto.UserId);
@@ -194,3 +186,7 @@ namespace EventPlanner.Controllers
 
     }
 }
+
+       
+
+

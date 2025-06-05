@@ -13,25 +13,29 @@ namespace EventPlanner.Repositories.Implementations
             _context = context;
         }
 
-        public async Task<User> GetUserByIdAsync(int userId)
+        public async Task<ApplicationUser> GetUserByIdAsync(string userId)
         {
-            return await _context.Users.FindAsync(userId);
+            return await _context.Users
+                .Include(u => u.Events)
+                .Include(u => u.RSVPs)
+                .Include(u => u.Invites)
+                .FirstOrDefaultAsync(u => u.Id == userId);
         }
-        public async Task<IEnumerable<User>> GetAllUsersAsync()
+        public async Task<IEnumerable<ApplicationUser>> GetAllUsersAsync()
         {
             return await _context.Users.ToListAsync();
         }
-        public async Task AddUserAsync(User user)
+        public async Task AddUserAsync(ApplicationUser user)
         {
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
         }
-        public async Task UpdateUserAsync(User user)
+        public async Task UpdateUserAsync(ApplicationUser user)
         {
             _context.Users.Update(user);
             await _context.SaveChangesAsync();
         }
-        public async Task DeleteUserAsync(int userId)
+        public async Task DeleteUserAsync(string userId)
         {
             var user = await GetUserByIdAsync(userId);
             if (user != null)
@@ -42,7 +46,7 @@ namespace EventPlanner.Repositories.Implementations
         }
 
         // Additional
-        public async Task<User> GetUserByEmailAsync(string email)
+        public async Task<ApplicationUser> GetUserByEmailAsync(string email)
         {
             return await _context.Users
                 .FirstOrDefaultAsync(u => u.Email == email);

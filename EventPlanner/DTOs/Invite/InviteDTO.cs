@@ -10,9 +10,9 @@ namespace EventPlanner.DTOs.Invite
         public DateTime SentAt { get; set; }
         public DateTime? RespondedAt { get; set; }
         public string? Message { get; set; }
-        public int InviterId { get; set; }
+        public string InviterId { get; set; }
         public string InviterName { get; set; } // Flattened from User
-        public int InviteeId { get; set; }
+        public string InviteeId { get; set; }
         public string InviteeName { get; set; } // Flattened from User
         public int EventId { get; set; }
         public string EventTitle { get; set; } // Flattened from Event

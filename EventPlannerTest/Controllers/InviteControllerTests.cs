@@ -1,143 +1,169 @@
 ﻿using EventPlanner.Controllers;
 using EventPlanner.DTOs.Invite;
 using EventPlanner.Services.Interfaces;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Moq;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
+using System.Security.Claims;
 using System.Threading.Tasks;
+using Xunit;
 
 namespace EventPlannerTest.Controllers
 {
     public class InviteControllerTests
     {
-        private readonly Mock<IInviteService> _mockInviteService;
+        private readonly Mock<IInviteService> _mockService;
         private readonly InviteController _controller;
 
         public InviteControllerTests()
         {
-            _mockInviteService = new Mock<IInviteService>();
-            _controller = new InviteController(_mockInviteService.Object);
+            _mockService = new Mock<IInviteService>();
+            _controller = new InviteController(_mockService.Object);
         }
 
         [Fact]
-        public async Task GetAllInvites_ReturnsOkResultWithList()
+        public async Task GetAllInvites_ReturnsOk_WithInvites()
         {
-            var invites = new List<InviteDTO> { new InviteDTO { Id = 1 } };
-            _mockInviteService.Setup(s => s.GetAllInvitesAsync()).ReturnsAsync(invites);
+            var invites = new List<InviteDTO> { new InviteDTO { Id = 1 }, new InviteDTO { Id = 2 } };
+            _mockService.Setup(s => s.GetAllInvitesAsync()).ReturnsAsync(invites);
 
             var result = await _controller.GetAllInvites();
 
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(invites, okResult.Value);
+            var returnedInvites = Assert.IsAssignableFrom<IEnumerable<InviteDTO>>(okResult.Value);
+            Assert.Equal(2, ((List<InviteDTO>)returnedInvites).Count);
         }
 
         [Fact]
-        public async Task GetInviteById_ValidId_ReturnsInvite()
+        public async Task GetInviteById_ReturnsOk_WhenInviteExists()
         {
-            var invite = new InviteDTO { Id = 1 };
-            _mockInviteService.Setup(s => s.GetInviteByIdAsync(1)).ReturnsAsync(invite);
+            var invite = new InviteDTO { Id = 5 };
+            _mockService.Setup(s => s.GetInviteByIdAsync(5)).ReturnsAsync(invite);
 
-            var result = await _controller.GetInviteById(1);
+            var result = await _controller.GetInviteById(5);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(invite, okResult.Value);
+            var returnedInvite = Assert.IsType<InviteDTO>(okResult.Value);
+            Assert.Equal(5, returnedInvite.Id);
         }
 
         [Fact]
-        public async Task GetInviteById_InvalidId_ReturnsNotFound()
+        public async Task GetInviteById_ReturnsNotFound_WhenInviteDoesNotExist()
         {
-            _mockInviteService.Setup(s => s.GetInviteByIdAsync(999)).ReturnsAsync((InviteDTO)null);
+            _mockService.Setup(s => s.GetInviteByIdAsync(10)).ReturnsAsync((InviteDTO)null);
 
-            var result = await _controller.GetInviteById(999);
+            var result = await _controller.GetInviteById(10);
 
-            Assert.IsType<NotFoundObjectResult>(result);
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            Assert.Equal("Invite not found", notFoundResult.Value);
         }
 
         [Fact]
-        public async Task SendInvite_ValidInvite_ReturnsCreatedAtAction()
+        public async Task SendInvite_ReturnsCreatedAtAction_WhenSuccessful()
         {
-            var inviteCreate = new InviteCreateDTO { InviteeId = 2, InviterId = 1, EventId = 5 };
-            var createdInvite = new InviteDTO { Id = 10 };
-            _mockInviteService.Setup(s => s.SendInviteAsync(inviteCreate)).ReturnsAsync(createdInvite);
+            var createDto = new InviteCreateDTO();
+            var createdInvite = new InviteDTO { Id = 1 };
 
-            var result = await _controller.SendInvite(inviteCreate);
+            _mockService.Setup(s => s.SendInviteAsync(createDto)).ReturnsAsync(createdInvite);
+
+            var result = await _controller.SendInvite(createDto);
 
             var createdResult = Assert.IsType<CreatedAtActionResult>(result);
-            Assert.Equal(createdInvite, createdResult.Value);
+            Assert.Equal(nameof(_controller.GetInviteById), createdResult.ActionName);
+            var returnedInvite = Assert.IsType<InviteDTO>(createdResult.Value);
+            Assert.Equal(1, returnedInvite.Id);
         }
 
         [Fact]
-        public async Task SendInvite_InvalidInvite_ReturnsBadRequest()
+        public async Task SendInvite_ReturnsBadRequest_WhenExceptionThrown()
         {
-            var inviteCreate = new InviteCreateDTO();
-            _mockInviteService.Setup(s => s.SendInviteAsync(inviteCreate)).ThrowsAsync(new Exception("Error"));
+            var createDto = new InviteCreateDTO();
+            _mockService.Setup(s => s.SendInviteAsync(createDto)).ThrowsAsync(new Exception("Error"));
 
-            var result = await _controller.SendInvite(inviteCreate);
+            var result = await _controller.SendInvite(createDto);
 
             var badRequest = Assert.IsType<BadRequestObjectResult>(result);
             Assert.Equal("Error", badRequest.Value);
         }
 
         [Fact]
-        public async Task UpdateInvite_Valid_ReturnsOk()
+        public async Task UpdateInvite_ReturnsOk_WhenSuccessful()
         {
-            var updateDto = new InviteUpdateDTO { Status = EventPlanner.Enums.InviteStatus.Accepted };
-            var updated = new InviteDTO { Id = 1, Status = EventPlanner.Enums.InviteStatus.Accepted };
-            _mockInviteService.Setup(s => s.UpdateInviteAsync(1, updateDto)).ReturnsAsync(updated);
+            var updateDto = new InviteUpdateDTO();
+            var updatedInvite = new InviteDTO { Id = 2 };
 
-            var result = await _controller.UpdateInvite(1, updateDto);
+            _mockService.Setup(s => s.UpdateInviteAsync(2, updateDto)).ReturnsAsync(updatedInvite);
+
+            var result = await _controller.UpdateInvite(2, updateDto);
 
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(updated, okResult.Value);
+            var returnedInvite = Assert.IsType<InviteDTO>(okResult.Value);
+            Assert.Equal(2, returnedInvite.Id);
         }
 
         [Fact]
-        public async Task UpdateInvite_Exception_ReturnsBadRequest()
+        public async Task UpdateInvite_ReturnsBadRequest_WhenExceptionThrown()
         {
-            var updateDto = new InviteUpdateDTO { Status = EventPlanner.Enums.InviteStatus.Accepted };
-            _mockInviteService.Setup(s => s.UpdateInviteAsync(1, updateDto)).ThrowsAsync(new Exception("Update failed"));
+            var updateDto = new InviteUpdateDTO();
+            _mockService.Setup(s => s.UpdateInviteAsync(3, updateDto)).ThrowsAsync(new Exception("Error"));
 
-            var result = await _controller.UpdateInvite(1, updateDto);
+            var result = await _controller.UpdateInvite(3, updateDto);
 
             var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Equal("Update failed", badRequest.Value);
+            Assert.Equal("Error", badRequest.Value);
         }
 
         [Fact]
-        public async Task DeleteInvite_Valid_ReturnsNoContent()
+        public async Task DeleteInvite_ReturnsNoContent_WhenSuccessful()
         {
-            _mockInviteService.Setup(s => s.DeleteInviteAsync(1)).Returns(Task.CompletedTask);
+            _mockService.Setup(s => s.DeleteInviteAsync(4)).Returns(Task.CompletedTask);
 
-            var result = await _controller.DeleteInvite(1);
+            var result = await _controller.DeleteInvite(4);
 
             Assert.IsType<NoContentResult>(result);
         }
 
         [Fact]
-        public async Task DeleteInvite_Exception_ReturnsBadRequest()
+        public async Task DeleteInvite_ReturnsBadRequest_WhenExceptionThrown()
         {
-            _mockInviteService.Setup(s => s.DeleteInviteAsync(1)).ThrowsAsync(new Exception("Delete failed"));
+            _mockService.Setup(s => s.DeleteInviteAsync(5)).ThrowsAsync(new Exception("Error"));
 
-            var result = await _controller.DeleteInvite(1);
+            var result = await _controller.DeleteInvite(5);
 
             var badRequest = Assert.IsType<BadRequestObjectResult>(result);
-            Assert.Equal("Delete failed", badRequest.Value);
+            Assert.Equal("Error", badRequest.Value);
         }
 
         [Fact]
-        public async Task GetPendingInvitesByUserId_ReturnsPendingInvites()
+        public async Task GetPendingInvitesByUserId_ReturnsOk_WithInvites()
         {
+            // Arrange: Set up a fake user with required claims and roles
+            var userId = "7";
+            var claims = new List<Claim>
+            {
+                new Claim("id", userId.ToString()),
+                new Claim(ClaimTypes.Role, "Admin") // or "Organizer" if you want
+            };
+            var identity = new ClaimsIdentity(claims, "TestAuthType");
+            var claimsPrincipal = new ClaimsPrincipal(identity);
+
+            _controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { User = claimsPrincipal }
+            };
+
             var invites = new List<InviteDTO> { new InviteDTO { Id = 1 } };
-            _mockInviteService.Setup(s => s.GetPendingInvitesByUserIdAsync(2)).ReturnsAsync(invites);
+            _mockService.Setup(s => s.GetPendingInvitesByUserIdAsync(userId)).ReturnsAsync(invites);
 
-            var result = await _controller.GetPendingInvitesByUserId(2);
+            // Act
+            var result = await _controller.GetPendingInvitesByUserId(userId);
 
+            // Assert
             var okResult = Assert.IsType<OkObjectResult>(result);
-            Assert.Equal(invites, okResult.Value);
+            var returnedInvites = Assert.IsAssignableFrom<IEnumerable<InviteDTO>>(okResult.Value);
+            Assert.Single(returnedInvites);
         }
-
     }
 }

@@ -41,8 +41,8 @@ namespace EventPlanner.Repositories.Implementations
             }
         }
 
-        // Additional methods
-        public async Task<IEnumerable<Event>> GetEventsByUserIdAsync(int userId)
+        // Additional 
+        public async Task<IEnumerable<Event>> GetEventsByUserIdAsync(string userId)
         {
             return await _context.Events
                 .Where(e => e.UserId == userId)

@@ -91,13 +91,13 @@ namespace EventPlanner.Services.Implementations
             await _inviteRepository.DeleteInviteAsync(id);
         }
 
-        public async Task<IEnumerable<InviteDTO>> GetPendingInvitesByUserIdAsync(int userId)
+        public async Task<IEnumerable<InviteDTO>> GetPendingInvitesByUserIdAsync(string userId)
         {
             var invites = await _inviteRepository.GetPendingInvitesByUserIdAsync(userId);
             return _mapper.Map<IEnumerable<InviteDTO>>(invites);
         }
 
-        public async Task<InviteDTO?> GetByInviteeAndEventAsync(int inviteeId, int eventId)
+        public async Task<InviteDTO?> GetByInviteeAndEventAsync(string inviteeId, int eventId)
         {
             var invite = await _inviteRepository.GetByInviteeAndEventAsync(inviteeId, eventId);
             return _mapper.Map<InviteDTO>(invite);

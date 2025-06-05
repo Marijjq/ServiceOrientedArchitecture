@@ -9,8 +9,8 @@ namespace EventPlanner.Services.Interfaces
         Task<IEnumerable<InviteDTO>> GetAllInvitesAsync();
         Task<InviteDTO> UpdateInviteAsync(int id, InviteUpdateDTO inviteDto);
         Task DeleteInviteAsync(int id);
-        Task<IEnumerable<InviteDTO>> GetPendingInvitesByUserIdAsync(int userId);
-        Task<InviteDTO?> GetByInviteeAndEventAsync(int inviteeId, int eventId);
+        Task<IEnumerable<InviteDTO>> GetPendingInvitesByUserIdAsync(string userId);
+        Task<InviteDTO?> GetByInviteeAndEventAsync(string inviteeId, int eventId);
 
         // Unified Invite Creation Method
         Task<InviteDTO> SendInviteAsync(InviteCreateDTO inviteDto);

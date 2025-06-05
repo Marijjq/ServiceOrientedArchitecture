@@ -7,6 +7,8 @@ namespace EventPlanner.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize(Roles = "Admin,User")]
+
     public class CategoryController : ControllerBase
     {
         private readonly ICategoryService _categoryService;
@@ -17,8 +19,6 @@ namespace EventPlanner.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,User")]
-
         public async Task<ActionResult<IEnumerable<CategoryDTO>>> GetAllCategories()
         {
             var categories = await _categoryService.GetAllCategoriesAsync();
@@ -26,8 +26,6 @@ namespace EventPlanner.Controllers
         }
 
         [HttpGet("{id}")]
-        [Authorize(Roles = "Admin,User")]
-
         public async Task<ActionResult<CategoryDTO>> GetCategoryById(int id)
         {
             var category = await _categoryService.GetCategoryByIdAsync(id);
@@ -37,8 +35,6 @@ namespace EventPlanner.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
-
         public async Task<ActionResult<CategoryDTO>> CreateCategory([FromBody] CategoryCreateDTO category)
         {
             if (category == null)
@@ -55,8 +51,6 @@ namespace EventPlanner.Controllers
         }
 
         [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
-
         public async Task<IActionResult> UpdateCategory(int id, [FromBody] CategoryUpdateDTO category)
         {
             try
@@ -73,8 +67,6 @@ namespace EventPlanner.Controllers
         }
 
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
-
         public async Task<IActionResult> DeleteCategory(int id)
         {
             try
@@ -89,8 +81,6 @@ namespace EventPlanner.Controllers
         }
 
         [HttpGet("name/{name}")]
-        [Authorize(Roles = "Admin,User")]
-
         public async Task<ActionResult<CategoryDTO>> GetCategoryByName(string name)
         {
             var category = await _categoryService.GetCategoryByNameAsync(name);

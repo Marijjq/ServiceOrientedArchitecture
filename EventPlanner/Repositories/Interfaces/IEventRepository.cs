@@ -12,7 +12,7 @@ namespace EventPlanner.Repositories.Interfaces
         Task DeleteEventAsync(int id);
 
         //Additional
-        Task<IEnumerable<Event>> GetEventsByUserIdAsync(int userId);
+        Task<IEnumerable<Event>> GetEventsByUserIdAsync(string userId);
         Task<IEnumerable<Event>> GetEventsByCategoryIdAsync(int categoryId);
         Task<IEnumerable<Event>> GetEventsByStatusAsync(EventStatus status);
 

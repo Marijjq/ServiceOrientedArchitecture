@@ -53,7 +53,7 @@ namespace EventPlanner.Tests.Repositories
                     Location = "Location 1",
                     StartDate = DateTime.UtcNow.AddDays(7),
                     EndDate = DateTime.UtcNow.AddDays(8),
-                    UserId = 1,
+                    UserId = "1",
                     CategoryId = 10,
                     Status = EventStatus.Upcoming
                 },
@@ -65,7 +65,7 @@ namespace EventPlanner.Tests.Repositories
                     Location = "Location 2",
                     StartDate = DateTime.UtcNow.AddDays(7),
                     EndDate = DateTime.UtcNow.AddDays(8),
-                    UserId = 2,
+                    UserId = "2",
                     CategoryId = 20,
                     Status = EventStatus.Completed
                 },
@@ -77,7 +77,7 @@ namespace EventPlanner.Tests.Repositories
                     Location = "Location 3",
                     StartDate = DateTime.UtcNow.AddDays(7),
                     EndDate = DateTime.UtcNow.AddDays(8),
-                    UserId = 1,
+                    UserId = "1",
                     CategoryId = 10,
                     Status = EventStatus.Cancelled
                 }
@@ -119,10 +119,10 @@ namespace EventPlanner.Tests.Repositories
             using var context = new ApplicationDbContext(_options);
             var repository = new EventRepository(context);
 
-            var user1Events = (await repository.GetEventsByUserIdAsync(1)).ToList();
+            var user1Events = (await repository.GetEventsByUserIdAsync("1")).ToList();
 
             Assert.Equal(2, user1Events.Count);
-            Assert.All(user1Events, e => Assert.Equal(1, e.UserId));
+            Assert.All(user1Events, e => Assert.Equal("1", e.UserId));
         }
 
         [Fact]
@@ -163,7 +163,7 @@ namespace EventPlanner.Tests.Repositories
                 Location = "Location 4",
                 StartDate = DateTime.UtcNow.AddDays(7),
                 EndDate = DateTime.UtcNow.AddDays(8),
-                UserId = 3,
+                UserId = "3",
                 CategoryId = 30,
                 Status = EventStatus.Scheduled
             };

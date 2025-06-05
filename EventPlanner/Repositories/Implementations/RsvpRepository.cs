@@ -48,7 +48,7 @@ namespace EventPlanner.Repositories.Implementations
                 .ToListAsync();
         }
 
-        public async Task<IEnumerable<RSVP>> GetRsvpsByUserIdAsync(int userId)
+        public async Task<IEnumerable<RSVP>> GetRsvpsByUserIdAsync(string userId)
         {
             return await _context.RSVPs
                 .Where(r => r.UserId == userId)

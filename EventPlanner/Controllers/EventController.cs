@@ -48,7 +48,7 @@ namespace EventPlanner.Controllers
             {
                 return Unauthorized("User ID not found.");
             }
-            int userId = int.Parse(userIdClaim.Value);
+            string userId = userIdClaim.Value;
 
             try
             {
@@ -76,7 +76,7 @@ namespace EventPlanner.Controllers
             {
                 return Unauthorized("User ID not found.");
             }
-            int userId = int.Parse(userIdClaim.Value);
+            string userId = userIdClaim.Value;
 
             try
             {
@@ -120,8 +120,8 @@ namespace EventPlanner.Controllers
 
         // GET: api/event/user/{userId}
         [HttpGet("user/{userId}")]
-        [Authorize(Roles = "Admin,Organizer,User")]
-        public async Task<ActionResult<IEnumerable<EventDTO>>> GetEventsByUserId(int userId)
+        [Authorize]
+        public async Task<ActionResult<IEnumerable<EventDTO>>> GetEventsByUserId(string userId)
         {
             var events = await _eventService.GetEventsByUserIdAsync(userId);
             return Ok(events);
@@ -155,7 +155,7 @@ namespace EventPlanner.Controllers
             {
                 return Unauthorized("User ID not found.");
             }
-            int userId = int.Parse(userIdClaim.Value);
+            string userId = userIdClaim.Value;
 
             try
             {

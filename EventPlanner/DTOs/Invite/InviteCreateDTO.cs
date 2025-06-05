@@ -5,9 +5,9 @@ namespace EventPlanner.DTOs.Invite
     public class InviteCreateDTO
     {
         [Required]
-        public int InviterId { get; set; }
+        public string InviterId { get; set; }
         [Required]
-        public int InviteeId { get; set; }
+        public string InviteeId { get; set; }
         [Required]
         public int EventId { get; set; }
         public string? Message { get; set; }

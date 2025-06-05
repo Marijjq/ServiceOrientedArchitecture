@@ -24,8 +24,8 @@ namespace EventPlanner.Models
         public DateTime EndDate { get; set; }
 
         //Foreign key to User
-        public int UserId { get; set; }
-        public User User { get; set; }
+        public string UserId { get; set; }
+        public ApplicationUser User { get; set; }
 
         //Foreign key to Category
         public int CategoryId { get; set; }

@@ -8,7 +8,7 @@ namespace EventPlanner.DTOs.RSVP
         public RSVPStatus Status { get; set; } // Enum as string for readability
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
-        public int UserId { get; set; }
+        public string UserId { get; set; }
         public string UserName { get; set; } // Flattened from User
         public int EventId { get; set; }
         public string EventTitle { get; set; } // Flattened from Event

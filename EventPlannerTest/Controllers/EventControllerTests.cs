@@ -1,213 +1,297 @@
-﻿using Xunit;
-using Moq;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc;
-using EventPlanner.Controllers;
-using EventPlanner.Services.Interfaces;
+﻿using EventPlanner.Controllers;
 using EventPlanner.DTOs.Event;
 using EventPlanner.Enums;
+using EventPlanner.Services.Interfaces;
+using Microsoft.AspNetCore.Mvc;
+using Moq;
+using System;
+using System.Collections.Generic;
+using System.Security.Claims;
+using System.Threading.Tasks;
+using Xunit;
 
 namespace EventPlannerTest.Controllers
 {
-    public class EventControllerTests
+    public class EventControllerTests_NoAuth
     {
-        private readonly Mock<IEventService> _eventServiceMock;
+        private readonly Mock<IEventService> _mockService;
         private readonly EventController _controller;
 
-        public EventControllerTests()
+        public EventControllerTests_NoAuth()
         {
-            _eventServiceMock = new Mock<IEventService>();
-            _controller = new EventController(_eventServiceMock.Object);
+            _mockService = new Mock<IEventService>();
+            _controller = new EventController(_mockService.Object);
+
+            // Setup User with "id" claim for methods that expect it
+            var user = new ClaimsPrincipal(new ClaimsIdentity(new Claim[]
+            {
+                new Claim("id", "123")
+            }, "mock"));
+            _controller.ControllerContext = new ControllerContext
+            {
+                HttpContext = new Microsoft.AspNetCore.Http.DefaultHttpContext { User = user }
+            };
         }
 
         [Fact]
-        public async Task GetAllEvents_ReturnsOkResult_WithListOfEvents()
+        public async Task GetAllEvents_ReturnsOkWithEvents()
         {
-            _eventServiceMock.Setup(s => s.GetAllEventsAsync())
-                .ReturnsAsync(new List<EventDTO> { new EventDTO { Id = 1, Title = "Test Event" } });
+            var events = new List<EventDTO> { new EventDTO { Id = 1 }, new EventDTO { Id = 2 } };
+            _mockService.Setup(s => s.GetAllEventsAsync()).ReturnsAsync(events);
 
             var result = await _controller.GetAllEvents();
 
-            var ok = Assert.IsType<OkObjectResult>(result.Result);
-            var events = Assert.IsAssignableFrom<IEnumerable<EventDTO>>(ok.Value);
-            Assert.Single(events);
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedEvents = Assert.IsAssignableFrom<IEnumerable<EventDTO>>(okResult.Value);
+            Assert.Equal(2, ((List<EventDTO>)returnedEvents).Count);
         }
 
         [Fact]
-        public async Task GetEventById_ValidId_ReturnsEvent()
+        public async Task GetEventById_ReturnsOk_WhenFound()
         {
-            var dto = new EventDTO { Id = 1, Title = "Test" };
-            _eventServiceMock.Setup(s => s.GetEventByIdAsync(1)).ReturnsAsync(dto);
+            var eventItem = new EventDTO { Id = 5 };
+            _mockService.Setup(s => s.GetEventByIdAsync(5)).ReturnsAsync(eventItem);
 
-            var result = await _controller.GetEventById(1);
+            var result = await _controller.GetEventById(5);
 
-            var ok = Assert.IsType<OkObjectResult>(result.Result);
-            var ev = Assert.IsType<EventDTO>(ok.Value);
-            Assert.Equal("Test", ev.Title);
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedEvent = Assert.IsType<EventDTO>(okResult.Value);
+            Assert.Equal(5, returnedEvent.Id);
         }
 
         [Fact]
-        public async Task GetEventById_InvalidId_ReturnsNotFound()
+        public async Task GetEventById_ReturnsNotFound_WhenNotFound()
         {
-            _eventServiceMock.Setup(s => s.GetEventByIdAsync(999)).ReturnsAsync((EventDTO)null);
+            _mockService.Setup(s => s.GetEventByIdAsync(10)).ReturnsAsync((EventDTO)null);
 
-            var result = await _controller.GetEventById(999);
+            var result = await _controller.GetEventById(10);
 
-            Assert.IsType<NotFoundObjectResult>(result.Result);
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result.Result);
+            Assert.Equal("Event not found.", notFoundResult.Value);
         }
 
         [Fact]
-        public async Task CreateEvent_Valid_ReturnsCreated()
+        public async Task CreateEvent_ReturnsCreatedAtAction_WhenSuccessful()
         {
-            var createDto = new EventCreateDTO { Title = "New Event", Location = "Tetovo" };
-            var createdDto = new EventDTO { Id = 1, Title = "New Event" };
-
-            _eventServiceMock.Setup(s => s.CreateEventAsync(createDto, 1))
-                .ReturnsAsync(createdDto);
+            var createDto = new EventCreateDTO();
+            var createdEvent = new EventDTO { Id = 1 };
+            _mockService.Setup(s => s.CreateEventAsync(createDto, "123")).ReturnsAsync(createdEvent);
 
             var result = await _controller.CreateEvent(createDto);
 
-            var created = Assert.IsType<CreatedAtActionResult>(result.Result);
-            var ev = Assert.IsType<EventDTO>(created.Value);
-            Assert.Equal("New Event", ev.Title);
+            var createdResult = Assert.IsType<CreatedAtActionResult>(result.Result);
+            Assert.Equal(nameof(_controller.GetEventById), createdResult.ActionName);
+            var returnedEvent = Assert.IsType<EventDTO>(createdResult.Value);
+            Assert.Equal(1, returnedEvent.Id);
         }
 
         [Fact]
-        public async Task UpdateEvent_Valid_ReturnsOk()
+        public async Task CreateEvent_ReturnsUnauthorized_WhenUserIdClaimMissing()
         {
-            var updateDto = new EventUpdateDTO { Title = "Updated" };
-            var updatedDto = new EventDTO { Id = 1, Title = "Updated" };
+            // Remove user claims
+            _controller.ControllerContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity());
 
-            _eventServiceMock.Setup(s => s.UpdateEventAsync(1, updateDto, 1))
-                .ReturnsAsync(updatedDto);
+            var createDto = new EventCreateDTO();
 
-            var result = await _controller.UpdateEvent(1, updateDto);
+            var result = await _controller.CreateEvent(createDto);
 
-            var ok = Assert.IsType<OkObjectResult>(result.Result);
-            var ev = Assert.IsType<EventDTO>(ok.Value);
-            Assert.Equal("Updated", ev.Title);
+            var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result.Result);
+            Assert.Equal("User ID not found.", unauthorizedResult.Value);
         }
 
         [Fact]
-        public async Task UpdateEvent_Invalid_ReturnsBadRequest()
+        public async Task CreateEvent_ReturnsBadRequest_OnArgumentException()
         {
-            var updateDto = new EventUpdateDTO { Title = "" };
+            var createDto = new EventCreateDTO();
+            _mockService.Setup(s => s.CreateEventAsync(createDto, "123")).ThrowsAsync(new ArgumentException("Invalid data"));
 
-            _eventServiceMock.Setup(s => s.UpdateEventAsync(1, updateDto, 1))
-                .ThrowsAsync(new ArgumentException("Invalid update."));
-
-            var result = await _controller.UpdateEvent(1, updateDto);
+            var result = await _controller.CreateEvent(createDto);
 
             var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
-            Assert.Equal("Invalid update.", badRequest.Value);
+            Assert.Equal("Invalid data", badRequest.Value);
         }
 
         [Fact]
-        public async Task UpdateEvent_Unauthorized_ReturnsForbid()
+        public async Task CreateEvent_ReturnsInternalServerError_OnException()
         {
-            var updateDto = new EventUpdateDTO { Title = "Unauthorized" };
+            var createDto = new EventCreateDTO();
+            _mockService.Setup(s => s.CreateEventAsync(createDto, "123")).ThrowsAsync(new Exception("DB failure"));
 
-            _eventServiceMock.Setup(s => s.UpdateEventAsync(1, updateDto, 1))
-                .ThrowsAsync(new UnauthorizedAccessException());
+            var result = await _controller.CreateEvent(createDto);
 
-            var result = await _controller.UpdateEvent(1, updateDto);
-
-            Assert.IsType<ForbidResult>(result.Result);
+            var statusResult = Assert.IsType<ObjectResult>(result.Result);
+            Assert.Equal(500, statusResult.StatusCode);
+            Assert.Contains("DB failure", statusResult.Value.ToString());
         }
 
         [Fact]
-        public async Task DeleteEvent_Valid_ReturnsNoContent()
+        public async Task UpdateEvent_ReturnsOk_WhenSuccessful()
         {
-            _eventServiceMock.Setup(s => s.DeleteEventAsync(1)).Returns(Task.CompletedTask);
+            var updateDto = new EventUpdateDTO();
+            var updatedEvent = new EventDTO { Id = 2 };
+            _mockService.Setup(s => s.UpdateEventAsync(2, updateDto, "123")).ReturnsAsync(updatedEvent);
 
-            var result = await _controller.DeleteEvent(1);
+            var result = await _controller.UpdateEvent(2, updateDto);
+
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedEvent = Assert.IsType<EventDTO>(okResult.Value);
+            Assert.Equal(2, returnedEvent.Id);
+        }
+
+        [Fact]
+        public async Task UpdateEvent_ReturnsUnauthorized_WhenUserIdClaimMissing()
+        {
+            _controller.ControllerContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity());
+
+            var updateDto = new EventUpdateDTO();
+
+            var result = await _controller.UpdateEvent(2, updateDto);
+
+            var unauthorizedResult = Assert.IsType<UnauthorizedObjectResult>(result.Result);
+            Assert.Equal("User ID not found.", unauthorizedResult.Value);
+        }
+
+        [Fact]
+        public async Task UpdateEvent_ReturnsBadRequest_OnArgumentException()
+        {
+            var updateDto = new EventUpdateDTO();
+            _mockService.Setup(s => s.UpdateEventAsync(2, updateDto, "123")).ThrowsAsync(new ArgumentException("Bad data"));
+
+            var result = await _controller.UpdateEvent(2, updateDto);
+
+            var badRequest = Assert.IsType<BadRequestObjectResult>(result.Result);
+            Assert.Equal("Bad data", badRequest.Value);
+        }
+
+        [Fact]
+        public async Task UpdateEvent_ReturnsForbid_OnUnauthorizedAccessException()
+        {
+            var updateDto = new EventUpdateDTO();
+            _mockService.Setup(s => s.UpdateEventAsync(2, updateDto, "123")).ThrowsAsync(new UnauthorizedAccessException());
+
+            var result = await _controller.UpdateEvent(2, updateDto);
+
+            var forbidResult = Assert.IsType<ForbidResult>(result.Result);
+        }
+
+        [Fact]
+        public async Task UpdateEvent_ReturnsInternalServerError_OnException()
+        {
+            var updateDto = new EventUpdateDTO();
+            _mockService.Setup(s => s.UpdateEventAsync(2, updateDto, "123")).ThrowsAsync(new Exception("DB failure"));
+
+            var result = await _controller.UpdateEvent(2, updateDto);
+
+            var statusResult = Assert.IsType<ObjectResult>(result.Result);
+            Assert.Equal(500, statusResult.StatusCode);
+            Assert.Contains("DB failure", statusResult.Value.ToString());
+        }
+
+        [Fact]
+        public async Task DeleteEvent_ReturnsNoContent_WhenSuccessful()
+        {
+            _mockService.Setup(s => s.DeleteEventAsync(5)).Returns(Task.CompletedTask);
+
+            var result = await _controller.DeleteEvent(5);
 
             Assert.IsType<NoContentResult>(result);
         }
 
         [Fact]
-        public async Task DeleteEvent_InvalidId_ReturnsNotFound()
+        public async Task DeleteEvent_ReturnsNotFound_OnArgumentException()
         {
-            _eventServiceMock.Setup(s => s.DeleteEventAsync(999))
-                .ThrowsAsync(new ArgumentException("Event not found."));
+            _mockService.Setup(s => s.DeleteEventAsync(5)).ThrowsAsync(new ArgumentException("Not found"));
 
-            var result = await _controller.DeleteEvent(999);
+            var result = await _controller.DeleteEvent(5);
 
-            var notFound = Assert.IsType<NotFoundObjectResult>(result);
-            Assert.Equal("Event not found.", notFound.Value);
+            var notFoundResult = Assert.IsType<NotFoundObjectResult>(result);
+            Assert.Equal("Not found", notFoundResult.Value);
         }
 
         [Fact]
-        public async Task GetEventsByUserId_ReturnsEvents()
+        public async Task DeleteEvent_ReturnsInternalServerError_OnException()
         {
-            _eventServiceMock.Setup(s => s.GetEventsByUserIdAsync(1))
-                .ReturnsAsync(new List<EventDTO> { new EventDTO { Id = 1 } });
+            _mockService.Setup(s => s.DeleteEventAsync(5)).ThrowsAsync(new Exception("DB error"));
 
-            var result = await _controller.GetEventsByUserId(1);
+            var result = await _controller.DeleteEvent(5);
 
-            var ok = Assert.IsType<OkObjectResult>(result.Result);
-            var events = Assert.IsAssignableFrom<IEnumerable<EventDTO>>(ok.Value);
-            Assert.Single(events);
+            var statusResult = Assert.IsType<ObjectResult>(result);
+            Assert.Equal(500, statusResult.StatusCode);
+            Assert.Contains("DB error", statusResult.Value.ToString());
         }
 
         [Fact]
-        public async Task GetEventsByCategoryId_ReturnsEvents()
+        public async Task GetEventsByUserId_ReturnsOkWithEvents()
         {
-            _eventServiceMock.Setup(s => s.GetEventsByCategoryIdAsync(1))
-                .ReturnsAsync(new List<EventDTO> { new EventDTO { Id = 1 } });
+            var events = new List<EventDTO> { new EventDTO { Id = 7 } };
+            _mockService.Setup(s => s.GetEventsByUserIdAsync("7")).ReturnsAsync(events);
 
-            var result = await _controller.GetEventsByCategoryId(1);
+            var result = await _controller.GetEventsByUserId("7");
 
-            var ok = Assert.IsType<OkObjectResult>(result.Result);
-            Assert.Single((IEnumerable<EventDTO>)ok.Value);
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedEvents = Assert.IsAssignableFrom<IEnumerable<EventDTO>>(okResult.Value);
+            Assert.Single(returnedEvents);
         }
 
         [Fact]
-        public async Task GetEventsByStatus_ReturnsEvents()
+        public async Task GetEventsByCategoryId_ReturnsOkWithEvents()
         {
-            _eventServiceMock.Setup(s => s.GetEventsByStatusAsync(EventStatus.Upcoming))
-                .ReturnsAsync(new List<EventDTO> { new EventDTO { Status = EventStatus.Upcoming.ToString() } });
+            var events = new List<EventDTO> { new EventDTO { Id = 9 } };
+            _mockService.Setup(s => s.GetEventsByCategoryIdAsync(9)).ReturnsAsync(events);
+
+            var result = await _controller.GetEventsByCategoryId(9);
+
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedEvents = Assert.IsAssignableFrom<IEnumerable<EventDTO>>(okResult.Value);
+            Assert.Single(returnedEvents);
+        }
+
+        [Fact]
+        public async Task GetEventsByStatus_ReturnsOkWithEvents()
+        {
+            var events = new List<EventDTO> { new EventDTO { Id = 11 } };
+            _mockService.Setup(s => s.GetEventsByStatusAsync(EventStatus.Upcoming)).ReturnsAsync(events);
             var result = await _controller.GetEventsByStatus(EventStatus.Upcoming);
 
-            var ok = Assert.IsType<OkObjectResult>(result.Result);
-            Assert.Single((IEnumerable<EventDTO>)ok.Value);
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedEvents = Assert.IsAssignableFrom<IEnumerable<EventDTO>>(okResult.Value);
+            Assert.Single(returnedEvents);
         }
 
         [Fact]
-        public async Task ToggleEventStatus_Valid_ReturnsNoContent()
+        public async Task ToggleEventStatus_ReturnsNoContent_WhenSuccessful()
         {
-            _eventServiceMock.Setup(s => s.ToggleEventStatusAsync(1, EventStatus.Completed))
-                .Returns(Task.CompletedTask);
+            _mockService.Setup(s => s.ToggleEventStatusAsync(5, EventStatus.Cancelled, "123")).Returns(Task.CompletedTask);
 
-            var result = await _controller.ToggleEventStatus(1, EventStatus.Completed);
+            var result = await _controller.ToggleEventStatus(5, EventStatus.Cancelled);
 
             Assert.IsType<NoContentResult>(result);
         }
 
         [Fact]
-        public async Task GetUpcomingEvents_ReturnsList()
+        public async Task GetUpcomingEvents_ReturnsOkWithEvents()
         {
-            _eventServiceMock.Setup(s => s.GetUpcomingEventsAsync())
-                .ReturnsAsync(new List<EventDTO> { new EventDTO { Title = "Soon" } });
+            var events = new List<EventDTO> { new EventDTO { Id = 14 } };
+            _mockService.Setup(s => s.GetUpcomingEventsAsync()).ReturnsAsync(events);
 
             var result = await _controller.GetUpcomingEvents();
 
-            var ok = Assert.IsType<OkObjectResult>(result.Result);
-            Assert.Single((IEnumerable<EventDTO>)ok.Value);
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedEvents = Assert.IsAssignableFrom<IEnumerable<EventDTO>>(okResult.Value);
+            Assert.Single(returnedEvents);
         }
 
         [Fact]
-        public async Task SearchEventsByTitle_ReturnsMatching()
+        public async Task SearchEventsByTitle_ReturnsOkWithResults()
         {
-            _eventServiceMock.Setup(s => s.SearchEventsByTitleAsync("party"))
-                .ReturnsAsync(new List<EventDTO> { new EventDTO { Title = "Birthday party" } });
+            var events = new List<EventDTO> { new EventDTO { Id = 22 } };
+            _mockService.Setup(s => s.SearchEventsByTitleAsync("conference")).ReturnsAsync(events);
 
-            var result = await _controller.SearchEventsByTitle("party");
+            var result = await _controller.SearchEventsByTitle("conference");
 
-            var ok = Assert.IsType<OkObjectResult>(result.Result);
-            var list = Assert.IsAssignableFrom<IEnumerable<EventDTO>>(ok.Value);
-            Assert.Contains(list, e => e.Title.Contains("party"));
+            var okResult = Assert.IsType<OkObjectResult>(result.Result);
+            var returnedEvents = Assert.IsAssignableFrom<IEnumerable<EventDTO>>(okResult.Value);
+            Assert.Single(returnedEvents);
         }
     }
 }

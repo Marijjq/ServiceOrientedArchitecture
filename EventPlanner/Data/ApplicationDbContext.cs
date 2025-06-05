@@ -1,4 +1,5 @@
 ﻿using EventPlanner.Models;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,7 +14,6 @@ namespace EventPlanner.Data
         public DbSet<Category> Categories { get; set; }
         public DbSet<RSVP> RSVPs { get; set; }
         public DbSet<Invite> Invites { get; set; }
-        public DbSet<User> Users { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -22,51 +22,28 @@ namespace EventPlanner.Data
             // Configure Invite -> Inviter (User)
             modelBuilder.Entity<Invite>()
                 .HasOne(i => i.Inviter)
-                .WithMany() // No navigation property in User
-                .HasForeignKey(i => i.InviterId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .WithMany()
+                .HasForeignKey(i => i.InviterId);
 
-            // Configure Invite -> Invitee (User)
             modelBuilder.Entity<Invite>()
                 .HasOne(i => i.Invitee)
-                .WithMany() // No navigation property in User
-                .HasForeignKey(i => i.InviteeId)
-                .OnDelete(DeleteBehavior.Restrict);
+                .WithMany()
+                .HasForeignKey(i => i.InviteeId);
 
-            // Seed Users
-            modelBuilder.Entity<User>().HasData(
-                new User
+
+            // Seed Roles
+            modelBuilder.Entity<IdentityRole>().HasData(
+                new IdentityRole
                 {
-                    Id = 1,
-                    Username = "admin",
-                    Email = "admin@eventplanner.com",
-                    Password = "Admin123!",
-                    FirstName = "Admin",
-                    LastName = "User",
-                    Role = "Admin",
-                    PhoneNumber = "1234567890"
+                    Id = "admin-role-id",
+                    Name = "Admin",
+                    NormalizedName = "ADMIN"
                 },
-                new User
+                new IdentityRole
                 {
-                    Id = 2,
-                    Username = "john.doe",
-                    Email = "john.doe@example.com",
-                    Password = "Password1!",
-                    FirstName = "John",
-                    LastName = "Doe",
-                    Role = "User",
-                    PhoneNumber = "0987654321"
-                },
-                new User
-                {
-                    Id = 3,
-                    Username = "jane.smith",
-                    Email = "jane.smith@example.com",
-                    Password = "Password2!",
-                    FirstName = "Jane",
-                    LastName = "Smith",
-                    Role = "User",
-                    PhoneNumber = "1122334455"
+                    Id = "user-role-id",
+                    Name = "User",
+                    NormalizedName = "USER"
                 }
             );
         }

@@ -9,7 +9,7 @@ namespace EventPlanner.DTOs.RSVP
         public int EventId { get; set; }
         [Required]
         public RSVPStatus Status { get; set; } // e.g., "Going", "Maybe", "NotGoing"
-        public int UserId { get; set; } // Added missing UserId property
+        public string UserId { get; set; } // Added missing UserId property
 
     }
 }

@@ -8,9 +8,9 @@ namespace EventPlanner.Profiles
     {
         public UserProfile() 
         {
-            CreateMap<User, UserDTO>();
-            CreateMap<UserCreateDTO, User>();
-            CreateMap<UserUpdateDTO, User>();
+            CreateMap<ApplicationUser, UserDTO>();
+            CreateMap<UserCreateDTO, ApplicationUser>();
+            CreateMap<UserUpdateDTO, ApplicationUser>();
         }
     }
 }

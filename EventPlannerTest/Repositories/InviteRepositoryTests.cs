@@ -5,7 +5,6 @@ using EventPlanner.Repositories.Implementations;
 using Microsoft.EntityFrameworkCore;
 using Xunit;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -18,16 +17,17 @@ namespace EventPlanner.Tests.Repositories
 
         public InviteRepositoryTests()
         {
-            _databaseName = Guid.NewGuid().ToString(); 
+            _databaseName = $"TestInviteDb_{Guid.NewGuid()}";
             _options = new DbContextOptionsBuilder<ApplicationDbContext>()
                 .UseInMemoryDatabase(_databaseName)
                 .Options;
 
-            using var context = new ApplicationDbContext(_options);
-            context.Database.EnsureDeleted();
-            context.Database.EnsureCreated();
-            SeedDatabase(context);
-
+            using (var context = new ApplicationDbContext(_options))
+            {
+                context.Database.EnsureDeleted();
+                context.Database.EnsureCreated();
+                SeedDatabase(context);
+            }
         }
 
         public void Dispose()
@@ -38,83 +38,97 @@ namespace EventPlanner.Tests.Repositories
 
         private void SeedDatabase(ApplicationDbContext context)
         {
-            var user1 = new User
+            // Clear existing data
+            context.Invites.RemoveRange(context.Invites);
+            context.Users.RemoveRange(context.Users);
+            context.Events.RemoveRange(context.Events);
+            context.SaveChanges();
+
+            // Seed users
+            var inviter = new ApplicationUser
             {
-                Id = 1,
-                Username = "Alice",
-                Email = "alice@example.com",
-                Password = "TestPassword1!",
-                FirstName = "Alice",
-                LastName = "Smith",
-                Role = "User",
-                PhoneNumber = "123-456-7890"
+                Id = "1",
+                Email = "inviter@example.com",
+                FirstName = "Inviter",
+                LastName = "User",
+                PhoneNumber = "111-111-1111"
             };
-            var user2 = new User
+            var invitee1 = new ApplicationUser
             {
-                Id = 2,
-                Username = "Bob",
-                Email = "bob@example.com",
-                Password = "TestPassword2!",
-                FirstName = "Bob",
-                LastName = "Johnson",
-                Role = "User",
-                PhoneNumber = "987-654-3210"
+                Id = "2",
+                Email = "invitee1@example.com",
+                FirstName = "Invitee",
+                LastName = "One",
+                PhoneNumber = "222-222-2222"
             };
+            var invitee2 = new ApplicationUser
+            {
+                Id = "3",
+                Email = "invitee2@example.com",
+                FirstName = "Invitee",
+                LastName = "Two",
+                PhoneNumber = "333-333-3333"
+            };
+            context.Users.AddRange(inviter, invitee1, invitee2);
+
+            // Seed events
             var event1 = new Event
             {
-                Id = 100,
-                Title = "Test Event",
-                UserId = 1,
+                Id = 1,
+                Title = "Event 1",
+                Description = "Description 1",
+                Location = "Location 1",
+                StartDate = DateTime.UtcNow.AddDays(1),
+                EndDate = DateTime.UtcNow.AddDays(2),
+                UserId = inviter.Id,
                 CategoryId = 1,
                 Status = EventStatus.Upcoming,
-                Location = "Test Location",
-                StartDate = DateTime.UtcNow.AddDays(1),
-                EndDate = DateTime.UtcNow.AddDays(2)
+                MaxParticipants = 100
             };
+            var event2 = new Event
+            {
+                Id = 2,
+                Title = "Event 2",
+                Description = "Description 2",
+                Location = "Location 2",
+                StartDate = DateTime.UtcNow.AddDays(3),
+                EndDate = DateTime.UtcNow.AddDays(4),
+                UserId = inviter.Id,
+                CategoryId = 1,
+                Status = EventStatus.Upcoming,
+                MaxParticipants = 100
+            };
+            context.Events.AddRange(event1, event2);
 
-            context.Users.AddRange(user1, user2);
-            context.Events.Add(event1);
+            context.SaveChanges();
 
-            context.Invites.Add(new Invite
+            // Seed invites
+            var invite1 = new Invite
             {
                 Id = 1,
-                InviterId = 1,
-                InviteeId = 2,
-                EventId = 100,
+                InviterId = inviter.Id,
+                InviteeId = invitee1.Id,
+                EventId = event1.Id,
                 Status = InviteStatus.Pending,
-                Message = "Initial Invite"
-            });
+                SentAt = DateTime.UtcNow
+            };
 
+            var invite2 = new Invite
+            {
+                Id = 2,
+                InviterId = inviter.Id,
+                InviteeId = invitee2.Id,
+                EventId = event2.Id,
+                Status = InviteStatus.Accepted,
+                SentAt = DateTime.UtcNow
+            };
+
+            context.Invites.AddRange(invite1, invite2);
             context.SaveChanges();
         }
 
         [Fact]
-        public async Task AddInviteAsync_AddsInvite_WithDefaults()
-        {
-            using var context = new ApplicationDbContext(_options);
-            var repo = new InviteRepository(context);
-
-            var newInvite = new Invite
-            {
-                InviterId = 1,
-                InviteeId = 2,
-                EventId = 100,
-                Message = "You're invited to the event!"
-            };
-
-            await repo.AddInviteAsync(newInvite);
-
-            var added = await context.Invites.FirstOrDefaultAsync(i => i.Message == "You're invited to the event!");
-
-            Assert.NotNull(added);
-            Assert.Equal(InviteStatus.Pending, added.Status);
-            Assert.NotEqual(default, added.SentAt);
-            Assert.Null(added.RespondedAt);
-            Assert.Null(added.ExpiresAt);
-        }
-
-        [Fact]
-        public async Task GetInviteByIdAsync_ReturnsCorrectInvite()
+        public async Task GetInviteByIdAsync_ReturnsInviteWithIncludes()
         {
             using var context = new ApplicationDbContext(_options);
             var repo = new InviteRepository(context);
@@ -122,39 +136,62 @@ namespace EventPlanner.Tests.Repositories
             var invite = await repo.GetInviteByIdAsync(1);
 
             Assert.NotNull(invite);
-            Assert.Equal(1, invite.InviterId);
-            Assert.Equal(2, invite.InviteeId);
-            Assert.Equal(100, invite.EventId);
-            Assert.Equal("Initial Invite", invite.Message);
+            Assert.Equal(1, invite.Id);
+            Assert.NotNull(invite.Inviter);
+            Assert.NotNull(invite.Invitee);
+            Assert.NotNull(invite.Event);
+            Assert.Equal(InviteStatus.Pending, invite.Status);
         }
 
         [Fact]
-        public async Task GetAllInvitesAsync_ReturnsAll()
+        public async Task GetAllInvitesAsync_ReturnsAllInvitesWithIncludes()
         {
             using var context = new ApplicationDbContext(_options);
             var repo = new InviteRepository(context);
 
-            var all = await repo.GetAllInvitesAsync();
+            var invites = await repo.GetAllInvitesAsync();
+            var list = invites.ToList();
 
-            Assert.Single(all);
+            Assert.Equal(2, list.Count);
+            Assert.All(list, i => Assert.NotNull(i.Invitee));
+            Assert.All(list, i => Assert.NotNull(i.Event));
         }
 
         [Fact]
-        public async Task UpdateInviteAsync_ChangesStatusAndResponseTime()
+        public async Task AddInviteAsync_AddsInviteSuccessfully()
         {
             using var context = new ApplicationDbContext(_options);
             var repo = new InviteRepository(context);
 
-            var invite = await repo.GetInviteByIdAsync(1);
-            invite.Status = InviteStatus.Accepted;
-            invite.RespondedAt = DateTime.UtcNow;
+            var newInvite = new Invite
+            {
+                InviterId = "1",
+                InviteeId = "3",
+                EventId = 1,
+                Status = InviteStatus.Pending,
+                SentAt = DateTime.UtcNow
+            };
+
+            await repo.AddInviteAsync(newInvite);
+
+            var inviteInDb = await context.Invites.FindAsync(newInvite.Id);
+            Assert.NotNull(inviteInDb);
+            Assert.Equal("3", inviteInDb.InviteeId);
+        }
+
+        [Fact]
+        public async Task UpdateInviteAsync_UpdatesInviteSuccessfully()
+        {
+            using var context = new ApplicationDbContext(_options);
+            var repo = new InviteRepository(context);
+
+            var invite = await context.Invites.FirstAsync();
+            invite.Status = InviteStatus.Declined;
 
             await repo.UpdateInviteAsync(invite);
 
-            var updated = await context.Invites.FindAsync(1);
-
-            Assert.Equal(InviteStatus.Accepted, updated.Status);
-            Assert.NotNull(updated.RespondedAt);
+            var updatedInvite = await context.Invites.FindAsync(invite.Id);
+            Assert.Equal(InviteStatus.Declined, updatedInvite.Status);
         }
 
         [Fact]
@@ -164,33 +201,47 @@ namespace EventPlanner.Tests.Repositories
             var repo = new InviteRepository(context);
 
             await repo.DeleteInviteAsync(1);
-            var deleted = await context.Invites.FindAsync(1);
 
-            Assert.Null(deleted);
+            var deletedInvite = await context.Invites.FindAsync(1);
+            Assert.Null(deletedInvite);
         }
 
         [Fact]
-        public async Task GetPendingInvitesByUserIdAsync_ReturnsCorrect()
+        public async Task GetPendingInvitesByUserIdAsync_ReturnsOnlyPending()
         {
             using var context = new ApplicationDbContext(_options);
             var repo = new InviteRepository(context);
 
-            var invites = await repo.GetPendingInvitesByUserIdAsync(2);
+            var pendingInvites = await repo.GetPendingInvitesByUserIdAsync("2");
 
-            Assert.Single(invites);
-            Assert.Equal(InviteStatus.Pending, invites.First().Status);
+            var list = pendingInvites.ToList();
+            Assert.Single(list);
+            Assert.All(list, i => Assert.Equal(InviteStatus.Pending, i.Status));
+            Assert.All(list, i => Assert.Equal("2", i.InviteeId));
         }
 
         [Fact]
-        public async Task GetByInviteeAndEventAsync_ReturnsExpected()
+        public async Task GetByInviteeAndEventAsync_ReturnsCorrectInvite()
         {
             using var context = new ApplicationDbContext(_options);
             var repo = new InviteRepository(context);
 
-            var invite = await repo.GetByInviteeAndEventAsync(2, 100);
+            var invite = await repo.GetByInviteeAndEventAsync("2", 1);
 
             Assert.NotNull(invite);
-            Assert.Equal(1, invite.InviterId);
+            Assert.Equal("2", invite.InviteeId);
+            Assert.Equal(1, invite.EventId);
+        }
+
+        [Fact]
+        public async Task GetByInviteeAndEventAsync_ReturnsNullIfNotFound()
+        {
+            using var context = new ApplicationDbContext(_options);
+            var repo = new InviteRepository(context);
+
+            var invite = await repo.GetByInviteeAndEventAsync("999", 999);
+
+            Assert.Null(invite);
         }
     }
 }

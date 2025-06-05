@@ -36,7 +36,7 @@ namespace EventPlanner.Services.Implementations
             return _mapper.Map<IEnumerable<EventDTO>>(events);
         }
 
-        public async Task<EventDTO> CreateEventAsync(EventCreateDTO eventDto, int userId)
+        public async Task<EventDTO> CreateEventAsync(EventCreateDTO eventDto, string userId)
         {
             // Validate required fields
             if (string.IsNullOrWhiteSpace(eventDto.Title) ||
@@ -74,7 +74,7 @@ namespace EventPlanner.Services.Implementations
             return _mapper.Map<EventDTO>(eventEntity);
         }
 
-        public async Task<EventDTO> UpdateEventAsync(int id, EventUpdateDTO eventDto, int userId)
+        public async Task<EventDTO> UpdateEventAsync(int id, EventUpdateDTO eventDto, string userId)
         {
             var existingEvent = await _eventRepository.GetEventByIdAsync(id);
             if (existingEvent == null)
@@ -133,7 +133,7 @@ namespace EventPlanner.Services.Implementations
             await _eventRepository.DeleteEventAsync(id);
         }
 
-        public async Task<IEnumerable<EventDTO>> GetEventsByUserIdAsync(int userId)
+        public async Task<IEnumerable<EventDTO>> GetEventsByUserIdAsync(string userId)
         {
             var events = await _eventRepository.GetEventsByUserIdAsync(userId);
             return _mapper.Map<IEnumerable<EventDTO>>(events);
@@ -185,7 +185,7 @@ namespace EventPlanner.Services.Implementations
                 .Where(e => e.Title.Contains(keyword, StringComparison.OrdinalIgnoreCase)));
         }
 
-        public async Task ToggleEventStatusAsync(int id, EventStatus status, int userId)
+        public async Task ToggleEventStatusAsync(int id, EventStatus status, string userId)
         {
             var eventItem = await _eventRepository.GetEventByIdAsync(id);
             if (eventItem == null)

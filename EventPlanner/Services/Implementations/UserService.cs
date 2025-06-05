@@ -3,6 +3,7 @@ using EventPlanner.DTOs.User;
 using EventPlanner.Models;
 using EventPlanner.Repositories.Interfaces;
 using EventPlanner.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 
 namespace EventPlanner.Services.Implementations
 {
@@ -10,21 +11,42 @@ namespace EventPlanner.Services.Implementations
     {
         private readonly IUserRepository _userRepository;
         private readonly IMapper _mapper;
-        public UserService(IUserRepository userRepository, IMapper mapper)
+        private readonly UserManager<ApplicationUser> _userManager;
+
+
+        public UserService(IUserRepository userRepository, IMapper mapper, UserManager<ApplicationUser> userManager)
         {
             _userRepository = userRepository;
             _mapper=mapper;
+            _userManager=userManager;
         }
         public async Task<IEnumerable<UserDTO>> GetAllUsersAsync()
         {
             var users = await _userRepository.GetAllUsersAsync();
-            return _mapper.Map<IEnumerable<UserDTO>>(users);
+            var userDtos = _mapper.Map<IEnumerable<UserDTO>>(users);
+
+            foreach (var userDto in userDtos)
+            {
+                var user = await _userManager.FindByIdAsync(userDto.Id);
+                var roles = await _userManager.GetRolesAsync(user);
+                userDto.Role = roles.FirstOrDefault() ?? "User"; // default role if none assigned
+            }
+
+            return userDtos;
         }
-        public async Task<UserDTO> GetUserByIdAsync(int userId)
+        public async Task<UserDTO> GetUserByIdAsync(string userId)
         {
             var user = await _userRepository.GetUserByIdAsync(userId);
-            return _mapper.Map<UserDTO>(user);
+            if (user == null) return null;
+
+            var userDto = _mapper.Map<UserDTO>(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+            userDto.Role = roles.FirstOrDefault() ?? "User";
+
+            return userDto;
         }
+
         public async Task<UserDTO> CreateUserAsync(UserCreateDTO userDto)
         {
             var existingUser = await _userRepository.GetUserByEmailAsync(userDto.Email);
@@ -32,11 +54,11 @@ namespace EventPlanner.Services.Implementations
             {
                 throw new ArgumentException("User with this email already exists.");
             }
-            var user = _mapper.Map<User>(userDto);
+            var user = _mapper.Map<ApplicationUser>(userDto);
             await _userRepository.AddUserAsync(user);
             return _mapper.Map<UserDTO>(user);
         }
-        public async Task<UserDTO> UpdateUserAsync(int userId, UserUpdateDTO userDto, int loggedInUserId)
+        public async Task<UserDTO> UpdateUserAsync(string userId, UserUpdateDTO userDto, string loggedInUserId)
         {
             if (userId != loggedInUserId)
             {
@@ -57,7 +79,7 @@ namespace EventPlanner.Services.Implementations
             return _mapper.Map<UserDTO>(existingUser);
         }
 
-        public async Task DeleteUserAsync(int userId)
+        public async Task DeleteUserAsync(string userId)
         {
             await _userRepository.DeleteUserAsync(userId);
         }
@@ -69,5 +91,11 @@ namespace EventPlanner.Services.Implementations
             var user = await _userRepository.GetUserByEmailAsync(username);
             return _mapper.Map<UserDTO>(user);
         }
+        public async Task<bool> IsAdminAsync(string userId)
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            return await _userManager.IsInRoleAsync(user, "Admin");
+        }
+
     }
 }

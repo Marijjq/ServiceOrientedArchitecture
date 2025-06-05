@@ -19,12 +19,13 @@ namespace EventPlanner.Models
         public string? Message { get; set; }
 
         [Required]
-        public int InviterId { get; set; }
-        public virtual User Inviter { get; set; }
-
+        public string InviterId { get; set; }
+        public ApplicationUser Inviter { get; set; }
         [Required]
-        public int InviteeId { get; set; }
-        public virtual User Invitee { get; set; }
+        public string InviteeId { get; set; }
+        public ApplicationUser Invitee { get; set; }
+
+
 
         [Required]
         public int EventId { get; set; }

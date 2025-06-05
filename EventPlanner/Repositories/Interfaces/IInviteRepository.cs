@@ -12,8 +12,8 @@ namespace EventPlanner.Repositories.Interfaces
         Task DeleteInviteAsync(int inviteId);
 
         //Additional
-        Task<IEnumerable<Invite>> GetPendingInvitesByUserIdAsync(int userId);
-        Task<Invite?> GetByInviteeAndEventAsync(int inviteeId, int eventId);
+        Task<IEnumerable<Invite>> GetPendingInvitesByUserIdAsync(string userId);
+        Task<Invite?> GetByInviteeAndEventAsync(string inviteeId, int eventId);
 
 
     }
