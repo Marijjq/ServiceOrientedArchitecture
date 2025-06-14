@@ -3,6 +3,7 @@ using EventPlanner.DTOs.Category;
 using EventPlanner.Models;
 using EventPlanner.Repositories.Interfaces;
 using EventPlanner.Services.Interfaces;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace EventPlanner.Services.Implementations
 {
@@ -10,10 +11,12 @@ namespace EventPlanner.Services.Implementations
     {
         private readonly ICategoryRepository _categoryRepository;
         private readonly IMapper _mapper;
-        public CategoryService(ICategoryRepository categoryRepository, IMapper mapper)
+        private readonly IMemoryCache _cache;
+        public CategoryService(ICategoryRepository categoryRepository, IMapper mapper, IMemoryCache memoryCache)
         {
             _categoryRepository = categoryRepository;
             _mapper = mapper;
+            _cache = memoryCache;
         }
         public async Task<CategoryDTO> GetCategoryByIdAsync(int categoryId)
         {
@@ -22,9 +25,20 @@ namespace EventPlanner.Services.Implementations
         }
         public async Task<IEnumerable<CategoryDTO>> GetAllCategoriesAsync()
         {
-            var categories = await _categoryRepository.GetAllCategoriesAsync();
-            return _mapper.Map<IEnumerable<CategoryDTO>>(categories);
+            if (!_cache.TryGetValue("categories", out IEnumerable<CategoryDTO> cached))
+            {
+                var categories = await _categoryRepository.GetAllCategoriesAsync();
+                cached = _mapper.Map<IEnumerable<CategoryDTO>>(categories);
+
+                _cache.Set("categories", cached, new MemoryCacheEntryOptions
+                {
+                    SlidingExpiration = TimeSpan.FromMinutes(10)
+                });
+            }
+
+            return cached;
         }
+
         public async Task<CategoryDTO> CreateCategoryAsync(CategoryCreateDTO categoryDto)
         {
             var existingCategory = await _categoryRepository.GetCategoryByNameAsync(categoryDto.Name);
@@ -36,6 +50,8 @@ namespace EventPlanner.Services.Implementations
 
             var category = _mapper.Map<Category>(categoryDto);
             await _categoryRepository.AddCategoryAsync(category);
+            _cache.Remove("categories");
+
             return _mapper.Map<CategoryDTO>(category);
         }
 
@@ -51,6 +67,8 @@ namespace EventPlanner.Services.Implementations
             existingCategory.UpdatedAt = DateTime.UtcNow;
 
             await _categoryRepository.UpdateCategoryAsync(existingCategory);
+            _cache.Remove("categories");
+
             return _mapper.Map<CategoryDTO>(existingCategory);
         }
         public async Task DeleteCategoryAsync(int categoryId)
@@ -60,6 +78,7 @@ namespace EventPlanner.Services.Implementations
             {
                 throw new ArgumentException("Category not found.");
             }
+            _cache.Remove("categories");
 
             await _categoryRepository.DeleteCategoryAsync(categoryId);
         }

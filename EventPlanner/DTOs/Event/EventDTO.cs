@@ -16,5 +16,6 @@
         public string Status { get; set; }
         public int RSVPCount { get; set; }
         public int InviteCount { get; set; }
+        public bool IsPrivate { get; set; } = false;
     }
 }

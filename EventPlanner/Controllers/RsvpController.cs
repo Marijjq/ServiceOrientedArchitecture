@@ -1,6 +1,5 @@
 ﻿using EventPlanner.DTOs.RSVP;
 using EventPlanner.Enums;
-using EventPlanner.Services.Implementations;
 using EventPlanner.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +17,7 @@ namespace EventPlanner.Controllers
         public RsvpController(IRsvpService rsvpService, IUserService userService)
         {
             _rsvpService = rsvpService;
-            _userService=userService;
+            _userService = userService;
         }
 
         [HttpGet]
@@ -53,7 +52,6 @@ namespace EventPlanner.Controllers
             if (currentUserId == null)
                 return Unauthorized();
 
-            // Override DTO's UserId with current user's ID
             rsvpDto.UserId = currentUserId;
 
             try
@@ -65,8 +63,15 @@ namespace EventPlanner.Controllers
             {
                 return BadRequest(new { message = ex.Message });
             }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new { message = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
-
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] RsvpUpdateDTO rsvpDto)
@@ -76,11 +81,7 @@ namespace EventPlanner.Controllers
                 var updated = await _rsvpService.UpdateRsvpAsync(id, rsvpDto);
                 return Ok(updated);
             }
-            catch (ArgumentException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
+            catch (Exception ex)
             {
                 return BadRequest(new { message = ex.Message });
             }
@@ -88,7 +89,6 @@ namespace EventPlanner.Controllers
 
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin,Organizer")]
-
         public async Task<IActionResult> Delete(int id)
         {
             try
@@ -107,36 +107,23 @@ namespace EventPlanner.Controllers
         {
             var currentUserId = User.FindFirst("id")?.Value;
             if (currentUserId == null)
-            {
                 return Unauthorized();
-            }
 
             try
             {
-                // Get RSVP and validate ownership
                 var rsvp = await _rsvpService.GetRsvpByIdAsync(id);
                 if (rsvp == null)
-                {
                     return NotFound(new { message = "RSVP not found." });
-                }
 
-                // Authorization check
                 if (rsvp.UserId != currentUserId && !await _userService.IsAdminAsync(currentUserId))
-                {
                     return Forbid();
-                }
 
-                // Update status
                 var result = await _rsvpService.UpdateStatusAsync(id, status);
                 return Ok(new { success = result });
             }
             catch (ArgumentException ex)
             {
                 return NotFound(new { message = ex.Message });
-            }
-            catch (UnauthorizedAccessException ex)
-            {
-                return Forbid(ex.Message);
             }
             catch (Exception ex)
             {
@@ -176,7 +163,6 @@ namespace EventPlanner.Controllers
             }
         }
 
-        // New endpoint: Respond to invite
         [HttpPost("invite/{inviteId}/respond")]
         public async Task<IActionResult> RespondToInvite(int inviteId, [FromQuery] RSVPStatus status)
         {

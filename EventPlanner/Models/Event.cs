@@ -36,6 +36,7 @@ namespace EventPlanner.Models
 
         public EventStatus Status { get; set; } = EventStatus.Upcoming; // Default status
         public int MaxParticipants { get; set; } // Maximum number of participants
+        public bool IsPrivate { get; set; } = false;
 
     }
 }

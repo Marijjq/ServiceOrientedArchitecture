@@ -1,4 +1,5 @@
 ﻿using EventPlanner.Data;
+using EventPlanner.DTOs.User;
 using EventPlanner.Models;
 using EventPlanner.Repositories.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -19,12 +20,16 @@ namespace EventPlanner.Repositories.Implementations
                 .Include(u => u.Events)
                 .Include(u => u.RSVPs)
                 .Include(u => u.Invites)
+                .AsNoTracking() 
                 .FirstOrDefaultAsync(u => u.Id == userId);
         }
         public async Task<IEnumerable<ApplicationUser>> GetAllUsersAsync()
         {
-            return await _context.Users.ToListAsync();
+            return await _context.Users
+                .AsNoTracking()
+                .ToListAsync();
         }
+
         public async Task AddUserAsync(ApplicationUser user)
         {
             await _context.Users.AddAsync(user);
@@ -49,6 +54,7 @@ namespace EventPlanner.Repositories.Implementations
         public async Task<ApplicationUser> GetUserByEmailAsync(string email)
         {
             return await _context.Users
+                .AsNoTracking() 
                 .FirstOrDefaultAsync(u => u.Email == email);
         }
     }

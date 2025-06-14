@@ -1,4 +1,5 @@
 ﻿using EventPlanner.Data;
+using EventPlanner.DTOs.Event;
 using EventPlanner.Enums;
 using EventPlanner.Models;
 using EventPlanner.Repositories.Interfaces;
@@ -15,12 +16,17 @@ namespace EventPlanner.Repositories.Implementations
         }
         public async Task<Event> GetEventByIdAsync(int id)
         {
-            return await _context.Events.FindAsync(id);
+            return await _context.Events
+                .AsNoTracking()
+                .FirstOrDefaultAsync(e=>e.Id == id);
         }
         public async Task<IEnumerable<Event>> GetAllEventsAsync()
         {
-            return await _context.Events.ToListAsync();
+            return await _context.Events
+                .AsNoTracking()
+                .ToListAsync();
         }
+
         public async Task AddEventAsync(Event eventItem)
         {
             await _context.Events.AddAsync(eventItem);
@@ -46,12 +52,14 @@ namespace EventPlanner.Repositories.Implementations
         {
             return await _context.Events
                 .Where(e => e.UserId == userId)
+                .AsNoTracking()
                 .ToListAsync();
         }
         public async Task<IEnumerable<Event>> GetEventsByCategoryIdAsync(int categoryId)
         {
             return await _context.Events
                 .Where(e => e.CategoryId == categoryId)
+                .AsNoTracking()
                 .ToListAsync();
         }
     
@@ -59,6 +67,7 @@ namespace EventPlanner.Repositories.Implementations
         {
             return await _context.Events
                 .Where(e => e.Status == status)
+                .AsNoTracking()
                 .ToListAsync();
         }
     }

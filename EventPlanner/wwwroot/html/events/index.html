@@ -1,0 +1,121 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Events</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div id="navbar"></div>
+
+
+    <div class="container mt-4">
+        <h2 class="mb-4">All Events</h2>
+
+        <div class="d-flex justify-content-between mb-3">
+            <input id="searchInput" class="form-control w-25" type="text" placeholder="Search by title..." oninput="loadEvents()">
+            <a href="form.html" class="btn btn-success">Create New Event</a>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Title</th>
+                        <th>Category</th>
+                        <th>Location</th>
+                        <th>Start</th>
+                        <th>End</th>
+                        <th>Status</th>
+                        <th>Private</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="eventTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const token = localStorage.getItem("token");
+        if (!token) window.location.href = "/auth/login.html";
+
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const roles = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] || [];
+        const roleList = Array.isArray(roles) ? roles : [roles];
+
+        const navLinks = document.getElementById("nav-links");
+        if (roleList.includes("Admin")) {
+            navLinks.innerHTML += `
+                            <li class="nav-item"><a class="nav-link" href="/users/index.html">Users</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/categories/index.html">Categories</a></li>
+                        `;
+        }
+        if (roleList.includes("Organizer")) {
+            navLinks.innerHTML += `
+                            <li class="nav-item"><a class="nav-link active" href="/events/index.html">Events</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/invites/index.html">Invites</a></li>
+                        `;
+        }
+        if (roleList.includes("User")) {
+            navLinks.innerHTML += `
+                            <li class="nav-item"><a class="nav-link" href="/rsvps/index.html">RSVPs</a></li>
+                            <li class="nav-item"><a class="nav-link" href="/profile.html">Profile</a></li>
+                        `;
+        }
+
+        async function loadEvents() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            const url = keyword ? `/api/event/search/${encodeURIComponent(keyword)}` : '/api/event';
+
+            const res = await fetch(url, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            const events = await res.json();
+
+            const tbody = document.getElementById("eventTableBody");
+            tbody.innerHTML = events.map(e => `
+                            <tr>
+                                <td>${e.title}</td>
+                                <td>${e.categoryName}</td>
+                                <td>${e.location}</td>
+                                <td>${new Date(e.startDate).toLocaleString()}</td>
+                                <td>${new Date(e.endDate).toLocaleString()}</td>
+                                <td>${e.status}</td>
+                                <td>${e.isPrivate ? 'Yes' : 'No'}</td>
+                                <td>
+                                    <a href="edit.html?id=${e.id}" class="btn btn-sm btn-primary">Edit</a>
+                                    <button onclick="deleteEvent(${e.id})" class="btn btn-sm btn-danger">Delete</button>
+                                </td>
+                            </tr>
+                        `).join("");
+        }
+
+        async function deleteEvent(id) {
+            if (!confirm("Are you sure you want to delete this event?")) return;
+
+            const res = await fetch(`/api/event/${id}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (res.ok) {
+                alert("Event deleted successfully.");
+                loadEvents();
+            } else {
+                alert("Failed to delete event.");
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem("token");
+            window.location.href = "/auth/login.html";
+        }
+
+        window.onload = loadEvents;
+    </script>
+    <script src="/shared/navbar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

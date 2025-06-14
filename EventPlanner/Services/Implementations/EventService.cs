@@ -4,10 +4,7 @@ using EventPlanner.Enums;
 using EventPlanner.Models;
 using EventPlanner.Repositories.Interfaces;
 using EventPlanner.Services.Interfaces;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace EventPlanner.Services.Implementations
 {
@@ -16,12 +13,15 @@ namespace EventPlanner.Services.Implementations
         private readonly IEventRepository _eventRepository;
         private readonly ICategoryRepository _categoryRepository;
         private readonly IMapper _mapper;
+        private readonly IMemoryCache _cache;
 
-        public EventService(IEventRepository eventRepository, ICategoryRepository categoryRepository, IMapper mapper)
+        public EventService(IEventRepository eventRepository, 
+            ICategoryRepository categoryRepository, IMapper mapper, IMemoryCache memoryCache)
         {
             _eventRepository = eventRepository;
             _categoryRepository = categoryRepository;
             _mapper = mapper;
+            _cache = memoryCache;
         }
 
         public async Task<EventDTO> GetEventByIdAsync(int id)
@@ -32,45 +32,49 @@ namespace EventPlanner.Services.Implementations
 
         public async Task<IEnumerable<EventDTO>> GetAllEventsAsync()
         {
-            var events = await _eventRepository.GetAllEventsAsync();
-            return _mapper.Map<IEnumerable<EventDTO>>(events);
+            if (!_cache.TryGetValue("events", out IEnumerable<EventDTO> cached))
+            {
+                var events = await _eventRepository.GetAllEventsAsync();
+                cached = _mapper.Map<IEnumerable<EventDTO>>(events);
+
+                _cache.Set("events", cached, new MemoryCacheEntryOptions
+                {
+                    SlidingExpiration = TimeSpan.FromMinutes(10)
+                });
+            }
+
+            return cached;
         }
+
 
         public async Task<EventDTO> CreateEventAsync(EventCreateDTO eventDto, string userId)
         {
-            // Validate required fields
-            if (string.IsNullOrWhiteSpace(eventDto.Title) ||
-                string.IsNullOrWhiteSpace(eventDto.Location))
-            {
+            // Basic validation
+            if (string.IsNullOrWhiteSpace(eventDto.Title) || string.IsNullOrWhiteSpace(eventDto.Location))
                 throw new ArgumentException("Title and location cannot be empty.");
-            }
 
-            // Validate dates
             if (eventDto.StartDate < DateTime.Now)
                 throw new ArgumentException("Start date cannot be in the past.");
 
             if (eventDto.StartDate >= eventDto.EndDate)
                 throw new ArgumentException("End date must be after start date.");
 
-            // Validate participants
             if (eventDto.MaxParticipants <= 0)
                 throw new ArgumentException("Max participants must be greater than 0.");
 
-            // Set default status if invalid
             if (!Enum.IsDefined(typeof(EventStatus), eventDto.Status))
                 eventDto.Status = EventStatus.Upcoming;
 
-            // Validate category exists
             var category = await _categoryRepository.GetCategoryByIdAsync(eventDto.CategoryId);
             if (category == null)
                 throw new ArgumentException("Category does not exist.");
 
-            // Map DTO to entity
             var eventEntity = _mapper.Map<Event>(eventDto);
             eventEntity.UserId = userId;
+            eventEntity.IsPrivate = eventDto.IsPrivate;
 
             await _eventRepository.AddEventAsync(eventEntity);
-
+            _cache.Remove("events");
             return _mapper.Map<EventDTO>(eventEntity);
         }
 
@@ -83,30 +87,23 @@ namespace EventPlanner.Services.Implementations
             if (existingEvent.UserId != userId)
                 throw new UnauthorizedAccessException("You are not authorized to update this event.");
 
-            // Validate required fields
-            if (string.IsNullOrWhiteSpace(eventDto.Title) ||
-                string.IsNullOrWhiteSpace(eventDto.Location))
-            {
+            if (string.IsNullOrWhiteSpace(eventDto.Title) || string.IsNullOrWhiteSpace(eventDto.Location))
                 throw new ArgumentException("Title and location cannot be empty.");
-            }
 
-            // Validate dates
             if (eventDto.StartDate < DateTime.Now)
                 throw new ArgumentException("Start date cannot be in the past.");
 
             if (eventDto.StartDate >= eventDto.EndDate)
                 throw new ArgumentException("End date must be after start date.");
 
-            // Validate participants
             if (eventDto.MaxParticipants <= 0)
                 throw new ArgumentException("Max participants must be greater than 0.");
 
-            // Validate category
             var category = await _categoryRepository.GetCategoryByIdAsync(eventDto.CategoryId);
             if (category == null)
                 throw new ArgumentException("Category does not exist.");
 
-            // Apply updates
+            // Apply changes
             existingEvent.Title = eventDto.Title;
             existingEvent.Description = eventDto.Description;
             existingEvent.Location = eventDto.Location;
@@ -115,8 +112,10 @@ namespace EventPlanner.Services.Implementations
             existingEvent.MaxParticipants = eventDto.MaxParticipants;
             existingEvent.Status = eventDto.Status;
             existingEvent.CategoryId = eventDto.CategoryId;
+            existingEvent.IsPrivate = eventDto.IsPrivate;
 
             await _eventRepository.UpdateEventAsync(existingEvent);
+            _cache.Remove("events");
 
             return _mapper.Map<EventDTO>(existingEvent);
         }
@@ -125,10 +124,12 @@ namespace EventPlanner.Services.Implementations
         {
             var eventItem = await _eventRepository.GetEventByIdAsync(id);
             if (eventItem == null)
-                throw new Exception("Event not found.");
+                throw new ArgumentException("Event not found.");
 
             if (eventItem.Status == EventStatus.Completed)
-                throw new Exception("Cannot delete a completed event.");
+                throw new InvalidOperationException("Cannot delete a completed event.");
+
+            _cache.Remove("events");
 
             await _eventRepository.DeleteEventAsync(id);
         }
@@ -191,16 +192,11 @@ namespace EventPlanner.Services.Implementations
             if (eventItem == null)
                 throw new ArgumentException("Event not found.");
 
-            // Check if user is owner
             if (eventItem.UserId != userId)
-            {
-                // Optional: You could inject a UserService to check roles if needed
                 throw new UnauthorizedAccessException("You are not authorized to change this event's status.");
-            }
 
             eventItem.Status = status;
             await _eventRepository.UpdateEventAsync(eventItem);
         }
-
     }
 }

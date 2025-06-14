@@ -18,16 +18,15 @@ namespace EventPlanner.Controllers
             _eventService = eventService;
         }
 
-        // GET: api/event
         [HttpGet]
         [AllowAnonymous]
+        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Client)]
         public async Task<ActionResult<IEnumerable<EventDTO>>> GetAllEvents()
         {
             var events = await _eventService.GetAllEventsAsync();
-            return Ok(events);
+            return Ok(await _eventService.GetAllEventsAsync());
         }
 
-        // GET: api/event/{id}
         [HttpGet("{id}")]
         [AllowAnonymous]
         public async Task<ActionResult<EventDTO>> GetEventById(int id)
@@ -38,12 +37,11 @@ namespace EventPlanner.Controllers
             return Ok(eventItem);
         }
 
-        // POST: api/event
         [HttpPost]
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<EventDTO>> CreateEvent([FromBody] EventCreateDTO eventItem)
         {
-            var userIdClaim = User.FindFirst("id");
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             if (userIdClaim == null)
             {
                 return Unauthorized("User ID not found.");
@@ -66,12 +64,11 @@ namespace EventPlanner.Controllers
         }
 
 
-        // PUT: api/event/{id}
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<ActionResult<EventDTO>> UpdateEvent(int id, [FromBody] EventUpdateDTO eventItem)
         {
-            var userIdClaim = User.FindFirst("id");
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             if (userIdClaim == null)
             {
                 return Unauthorized("User ID not found.");
@@ -97,8 +94,6 @@ namespace EventPlanner.Controllers
             }
         }
 
-
-        // DELETE: api/event/{id}
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteEvent(int id)
@@ -118,7 +113,6 @@ namespace EventPlanner.Controllers
             }
         }
 
-        // GET: api/event/user/{userId}
         [HttpGet("user/{userId}")]
         [Authorize]
         public async Task<ActionResult<IEnumerable<EventDTO>>> GetEventsByUserId(string userId)
@@ -127,7 +121,6 @@ namespace EventPlanner.Controllers
             return Ok(events);
         }
 
-        // GET: api/event/category/{categoryId}
         [HttpGet("category/{categoryId}")]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<EventDTO>>> GetEventsByCategoryId(int categoryId)
@@ -136,7 +129,6 @@ namespace EventPlanner.Controllers
             return Ok(events);
         }
 
-        // GET: api/event/status/{status}
         [HttpGet("status/{status}")]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<EventDTO>>> GetEventsByStatus(EventStatus status)
@@ -145,7 +137,6 @@ namespace EventPlanner.Controllers
             return Ok(events);
         }
 
-        // PUT: api/event/toggle-status/{id}/{status}
         [HttpPut("toggle-status/{id}/{status}")]
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<IActionResult> ToggleEventStatus(int id, EventStatus status)
@@ -180,7 +171,6 @@ namespace EventPlanner.Controllers
             }
         }
 
-        // GET: api/event/upcoming
         [HttpGet("upcoming")]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<EventDTO>>> GetUpcomingEvents()
@@ -189,7 +179,6 @@ namespace EventPlanner.Controllers
             return Ok(upcomingEvents);
         }
 
-        // GET: api/event/search/{keyword}
         [HttpGet("search/{keyword}")]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<EventDTO>>> SearchEventsByTitle(string keyword)
@@ -197,5 +186,29 @@ namespace EventPlanner.Controllers
             var events = await _eventService.SearchEventsByTitleAsync(keyword);
             return Ok(events);
         }
+        [HttpGet("{id}/is-full/{currentParticipants}")]
+        [Authorize]
+        public async Task<ActionResult<bool>> IsEventFull(int id, int currentParticipants)
+        {
+            var isFull = await _eventService.IsEventFullAsync(id, currentParticipants);
+            return Ok(isFull);
+        }
+
+        [HttpGet("{id}/is-upcoming")]
+        [Authorize]
+        public async Task<ActionResult<bool>> IsEventUpcoming(int id)
+        {
+            var isUpcoming = await _eventService.IsEventUpcomingAsync(id);
+            return Ok(isUpcoming);
+        }
+
+        [HttpGet("{id}/remaining-spots/{currentParticipants}")]
+        [Authorize]
+        public async Task<ActionResult<int>> GetRemainingSpots(int id, int currentParticipants)
+        {
+            var remainingSpots = await _eventService.GetRemainingSpotsAsync(id, currentParticipants);
+            return Ok(remainingSpots);
+        }
+
     }
 }

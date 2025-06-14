@@ -18,6 +18,7 @@ namespace EventPlanner.DTOs.Event
         public int CategoryId { get; set; }
         public int MaxParticipants { get; set; }
         public EventStatus Status { get; set; }
+        public bool IsPrivate { get; set; }
 
 
     }

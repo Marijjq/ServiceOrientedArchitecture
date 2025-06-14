@@ -13,12 +13,14 @@ namespace EventPlanner.Services.Implementations
         private readonly IRsvpRepository _rsvpRepository;
         private readonly IMapper _mapper;
         private readonly IInviteRepository _inviteRepository;
+        private readonly IEventRepository _eventRepository;
 
-        public RsvpService(IRsvpRepository rsvpRepository, IMapper mapper, IInviteRepository inviteRepository)
+        public RsvpService(IRsvpRepository rsvpRepository, IMapper mapper, IInviteRepository inviteRepository, IEventRepository eventRepository)
         {
             _rsvpRepository = rsvpRepository;
             _mapper = mapper;
             _inviteRepository=inviteRepository;
+            _eventRepository = eventRepository;
         }
 
         public async Task<RsvpDTO> GetRsvpByIdAsync(int id)
@@ -33,7 +35,18 @@ namespace EventPlanner.Services.Implementations
         public async Task<IEnumerable<RsvpDTO>> GetAllRsvpsAsync()
         {
             var rsvps = await _rsvpRepository.GetAllRsvpsAsync();
-            return _mapper.Map<IEnumerable<RsvpDTO>>(rsvps);
+
+            return rsvps.Select(r => new RsvpDTO
+            {
+                Id = r.Id,
+                UserId = r.UserId,
+                UserName = r.User?.FirstName + " " + r.User?.LastName, // assumes navigation property
+                EventId = r.EventId,
+                EventTitle = r.Event?.Title,
+                Status = r.Status,
+                CreatedAt = r.CreatedAt,
+                UpdatedAt = r.UpdatedAt
+            });
         }
 
         public async Task<IEnumerable<RsvpDTO>> GetRsvpsByEventIdAsync(int eventId)
@@ -53,7 +66,6 @@ namespace EventPlanner.Services.Implementations
             var rsvps = await _rsvpRepository.GetRsvpsByUserIdAsync(userId.ToString());
             return _mapper.Map<IEnumerable<RsvpDTO>>(rsvps);
         }
-
         public async Task<RsvpDTO> CreateRsvpAsync(RsvpCreateDTO rsvpDto)
         {
             if (rsvpDto == null)
@@ -62,10 +74,37 @@ namespace EventPlanner.Services.Implementations
             if (string.IsNullOrWhiteSpace(rsvpDto.UserId) || rsvpDto.EventId <= 0)
                 throw new ArgumentException("Invalid user or event ID");
 
-            var existingRsvps = await _rsvpRepository.GetRsvpsByUserIdAsync(rsvpDto.UserId.ToString());
+            // Check if RSVP already exists
+            var existingRsvps = await _rsvpRepository.GetRsvpsByUserIdAsync(rsvpDto.UserId);
             if (existingRsvps.Any(r => r.EventId == rsvpDto.EventId))
                 throw new InvalidOperationException("RSVP already exists for this user and event");
 
+            // Check if event exists
+            var eventItem = await _eventRepository.GetEventByIdAsync(rsvpDto.EventId);
+            if (eventItem == null)
+                throw new ArgumentException("Event not found");
+
+            // ❗ 1. Prevent RSVP for past or inactive events
+            if (eventItem.Status != EventStatus.Upcoming || eventItem.StartDate <= DateTime.UtcNow)
+                throw new InvalidOperationException("You cannot RSVP to a past or inactive event.");
+
+            // ❗ 2. Enforce privacy: must be invited if event is private
+            if (eventItem.IsPrivate)
+            {
+                var invite = await _inviteRepository.GetByInviteeAndEventAsync(rsvpDto.UserId, rsvpDto.EventId);
+                if (invite == null)
+                    throw new InvalidOperationException("You must be invited to RSVP to this private event.");
+            }
+
+
+            // ❗ 3. Enforce participant limit
+            var rsvpsForEvent = await _rsvpRepository.GetRsvpByEventIdAsync(rsvpDto.EventId);
+            var currentCount = rsvpsForEvent.Count(r => r.Status == RSVPStatus.Going);
+
+            if (currentCount >= eventItem.MaxParticipants)
+                throw new InvalidOperationException("This event is full.");
+
+            // Create the RSVP
             var rsvp = _mapper.Map<RSVP>(rsvpDto);
             rsvp.CreatedAt = DateTime.UtcNow;
             rsvp.UpdatedAt = null;
@@ -73,6 +112,8 @@ namespace EventPlanner.Services.Implementations
             await _rsvpRepository.AddRsvpAsync(rsvp);
             return _mapper.Map<RsvpDTO>(rsvp);
         }
+
+
 
         public async Task<RsvpDTO> UpdateRsvpAsync(int id, RsvpUpdateDTO rsvpDto)
         {
@@ -85,6 +126,14 @@ namespace EventPlanner.Services.Implementations
 
             if (rsvpDto.UserId.ToString() != existing.UserId || rsvpDto.EventId != existing.EventId)
                 throw new InvalidOperationException("User or Event cannot be changed");
+
+            // ❗ PROTECT: Prevent update if event has started
+            var eventItem = await _eventRepository.GetEventByIdAsync(existing.EventId);
+            if (eventItem == null)
+                throw new ArgumentException("Associated event not found");
+
+            if (eventItem.StartDate <= DateTime.UtcNow)
+                throw new InvalidOperationException("You cannot update RSVP after the event has started.");
 
             _mapper.Map(rsvpDto, existing);
             existing.UpdatedAt = DateTime.UtcNow;
@@ -106,31 +155,36 @@ namespace EventPlanner.Services.Implementations
             var invite = await _inviteRepository.GetInviteByIdAsync(inviteId)
                 ?? throw new ArgumentException("Invite not found");
 
-            // Convert InviteeId (string) to an integer if necessary
-            if (!int.TryParse(invite.InviteeId, out var inviteeId))
-                throw new ArgumentException("Invitee ID must be a valid integer");
+            if (invite.RespondedAt != null)
+                throw new InvalidOperationException("Invite has already been responded to.");
 
-            // Prevent duplicate RSVP
-            var existingRsvp = await _rsvpRepository.GetRsvpsByUserIdAsync(invite.InviteeId); // Pass InviteeId as string
+            if (invite.ExpiresAt != null && invite.ExpiresAt <= DateTime.UtcNow)
+                throw new InvalidOperationException("Invite has expired.");
+
+            var existingRsvp = await _rsvpRepository.GetRsvpsByUserIdAsync(invite.InviteeId);
             if (existingRsvp.Any(r => r.EventId == invite.EventId))
-                throw new InvalidOperationException("RSVP already exists for this invite");
+                throw new InvalidOperationException("RSVP already exists for this event.");
 
             var rsvp = new RSVP
             {
-                UserId = inviteeId.ToString(),
+                UserId = invite.InviteeId,
                 EventId = invite.EventId,
                 Status = responseStatus,
-                CreatedAt = DateTime.UtcNow,
+                CreatedAt = DateTime.UtcNow
             };
 
             await _rsvpRepository.AddRsvpAsync(rsvp);
 
-            // Optional: Update RespondedAt on Invite
+            invite.Status = responseStatus == RSVPStatus.Going
+                ? InviteStatus.Accepted
+                : InviteStatus.Declined;
+
             invite.RespondedAt = DateTime.UtcNow;
             await _inviteRepository.UpdateInviteAsync(invite);
 
             return _mapper.Map<RsvpDTO>(rsvp);
         }
+
         public async Task<bool> UpdateStatusAsync(int id, RSVPStatus status)
         {
             var rsvp = await _rsvpRepository.GetRsvpByIdAsync(id);

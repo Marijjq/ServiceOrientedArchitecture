@@ -8,7 +8,7 @@ namespace EventPlanner.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
+   // [Authorize]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
@@ -23,7 +23,8 @@ namespace EventPlanner.Controllers
 
         // GET: api/user
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+        // [Authorize(Roles = "Admin")]
+        [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Client)]
         public async Task<ActionResult<IEnumerable<UserDTO>>> GetAllUsers()
         {
             var users = await _userService.GetAllUsersAsync();
@@ -31,7 +32,7 @@ namespace EventPlanner.Controllers
         }
 
         // GET: api/user/{id}
-        [HttpGet("{id}")]
+       [HttpGet("{id}")]
         public async Task<ActionResult<UserDTO>> GetUserById(string id)
         {
             var currentUserId = User.FindFirst("id")?.Value;
@@ -56,6 +57,7 @@ namespace EventPlanner.Controllers
         }
 
         // PUT: api/user/{id}
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateUser(string id, [FromBody] UserUpdateDTO userDto)
         {

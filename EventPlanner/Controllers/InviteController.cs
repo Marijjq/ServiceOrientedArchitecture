@@ -2,6 +2,7 @@
 using EventPlanner.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace EventPlanner.Controllers
 {
@@ -17,17 +18,16 @@ namespace EventPlanner.Controllers
             _inviteService = inviteService;
         }
 
-        // Get all invites
+        // ✅ Admin/Organizer: Get all invites
         [HttpGet]
         [Authorize(Roles = "Admin,Organizer")]
-
         public async Task<IActionResult> GetAllInvites()
         {
             var invites = await _inviteService.GetAllInvitesAsync();
             return Ok(invites);
         }
 
-        // Get invite by ID
+        // ✅ Any authorized user: Get a single invite by ID
         [HttpGet("{id}")]
         public async Task<IActionResult> GetInviteById(int id)
         {
@@ -38,7 +38,7 @@ namespace EventPlanner.Controllers
             return Ok(invite);
         }
 
-        // Send (create) an invite
+        // ✅ Admin/Organizer: Send an invite
         [HttpPost]
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<IActionResult> SendInvite([FromBody] InviteCreateDTO inviteDto)
@@ -54,12 +54,11 @@ namespace EventPlanner.Controllers
             }
         }
 
-        // Update an invite
+        // ✅ Admin/Organizer: Update an invite
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<IActionResult> UpdateInvite(int id, [FromBody] InviteUpdateDTO inviteDto)
         {
-            // Removed the ID check since InviteUpdateDTO does not have an Id property
             try
             {
                 var updatedInvite = await _inviteService.UpdateInviteAsync(id, inviteDto);
@@ -71,7 +70,7 @@ namespace EventPlanner.Controllers
             }
         }
 
-        // Delete an invite
+        // ✅ Admin only: Delete invite
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteInvite(int id)
@@ -87,19 +86,16 @@ namespace EventPlanner.Controllers
             }
         }
 
-        // Get pending invites for a user
+        // ✅ Get pending invites (user can only see their own unless Admin or Organizer)
         [HttpGet("user/{userId}/pending")]
         public async Task<IActionResult> GetPendingInvitesByUserId(string userId)
         {
-            var currentUser = HttpContext.User;
-            var currentUserId = currentUser.FindFirst("id")?.Value;
-            var isAdmin = currentUser.IsInRole("Admin");
-            var isOrganizer = currentUser.IsInRole("Organizer");
+            var currentUserId = User.FindFirst("id")?.Value;
+            var isAdmin = User.IsInRole("Admin");
+            var isOrganizer = User.IsInRole("Organizer");
 
-            if (currentUserId != userId.ToString() && !isAdmin && !isOrganizer)
-            {
+            if (currentUserId != userId && !isAdmin && !isOrganizer)
                 return Forbid();
-            }
 
             var invites = await _inviteService.GetPendingInvitesByUserIdAsync(userId);
             return Ok(invites);

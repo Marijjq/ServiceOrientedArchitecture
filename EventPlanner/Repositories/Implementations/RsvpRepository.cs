@@ -14,11 +14,15 @@ namespace EventPlanner.Repositories.Implementations
         }
         public async Task<RSVP> GetRsvpByIdAsync(int rsvpId)
         {
-            return await _context.RSVPs.FindAsync(rsvpId);
+            return await _context.RSVPs
+                .AsNoTracking()
+                .FirstOrDefaultAsync(r=>r.Id == rsvpId);
         }
         public async Task<IEnumerable<RSVP>> GetAllRsvpsAsync()
         {
-            return await _context.RSVPs.ToListAsync();
+            return await _context.RSVPs
+                .AsNoTracking() 
+                .ToListAsync();
         }
         public async Task AddRsvpAsync(RSVP rsvp)
         {
@@ -45,6 +49,7 @@ namespace EventPlanner.Repositories.Implementations
         {
             return await _context.RSVPs
                 .Where(r => r.EventId == eventId)
+                .AsNoTracking()
                 .ToListAsync();
         }
 
@@ -52,6 +57,7 @@ namespace EventPlanner.Repositories.Implementations
         {
             return await _context.RSVPs
                 .Where(r => r.UserId == userId)
+                .AsNoTracking()
                 .ToListAsync();
         }
 

@@ -1,10 +1,11 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using EventPlanner.DTOs;
+using EventPlanner.Models;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
-using EventPlanner.DTOs;
-using EventPlanner.Models;
+using System.ComponentModel.DataAnnotations;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -13,6 +14,7 @@ namespace EventPlanner.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class AccountController : ControllerBase
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -73,82 +75,60 @@ namespace EventPlanner.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginModelDTO model)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-
-            ApplicationUser user = null;
-
-            if (model.EmailOrUsername.Contains("@"))
-            {
-                user = await _userManager.FindByEmailAsync(model.EmailOrUsername);
-            }
-            else
-            {
-                user = await _userManager.FindByNameAsync(model.EmailOrUsername);
-            }
+            var user = await _userManager.FindByEmailAsync(model.EmailOrUsername) ??
+                       await _userManager.FindByNameAsync(model.EmailOrUsername);
 
             if (user == null || !await _userManager.CheckPasswordAsync(user, model.Password))
-            {
                 return Unauthorized(new { message = "Invalid login attempt." });
-            }
 
+            // Get user roles
             var userRoles = await _userManager.GetRolesAsync(user);
 
-            var authClaims = new List<Claim>
+            var claims = new List<Claim>
                 {
                     new Claim(ClaimTypes.Name, user.UserName),
-                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), // Convert 'user.Id' to string
-                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                    new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                    new Claim(JwtRegisteredClaimNames.Sub, user.Id)
                 };
 
-            var userIdClaim = new Claim(ClaimTypes.NameIdentifier, user.Id.ToString());
-
-
+            // Add role claims
             foreach (var role in userRoles)
             {
-                authClaims.Add(new Claim(ClaimTypes.Role, role));
+                claims.Add(new Claim(ClaimTypes.Role, role));
             }
 
-            var authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]));
+            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(
                 issuer: _configuration["Jwt:Issuer"],
                 audience: _configuration["Jwt:Audience"],
-                expires: DateTime.Now.AddMinutes(30),
-                claims: authClaims,
-                signingCredentials: new SigningCredentials(authSigningKey, SecurityAlgorithms.HmacSha256)
+                claims: claims,
+                expires: DateTime.Now.AddHours(3),
+                signingCredentials: creds
             );
 
-            return Ok(new
-            {
-                token = new JwtSecurityTokenHandler().WriteToken(token),
-                expiration = token.ValidTo
-            });
+            return Ok(new { token = new JwtSecurityTokenHandler().WriteToken(token) });
         }
 
-        [Authorize(Roles = "Admin")]
+
         [HttpPost("role")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> CreateRole([FromBody] string roleName)
         {
             if (string.IsNullOrEmpty(roleName))
-            {
-                return BadRequest("Role name cannot be empty.");
-            }
+                return BadRequest("Role name cannot be empty");
 
-            var roleExists = await _roleManager.RoleExistsAsync(roleName);
-            if (roleExists)
-            {
-                return Conflict(new { message = $"Role '{roleName}' already exists." });
-            }
+            if (await _roleManager.RoleExistsAsync(roleName))
+                return Conflict($"Role '{roleName}' already exists");
 
             var result = await _roleManager.CreateAsync(new IdentityRole(roleName));
-            if (result.Succeeded)
-            {
-                return Ok(new { message = $"Role '{roleName}' created successfully." });
-            }
 
-            return StatusCode(StatusCodes.Status500InternalServerError, new { message = "Role creation failed.", errors = result.Errors.Select(e => e.Description) });
+            return result.Succeeded ?
+                Ok($"Role '{roleName}' created") :
+                StatusCode(500, result.Errors);
         }
+
 
         [Authorize(Roles = "Admin")]
         [HttpPost("assign-role")]
@@ -184,9 +164,14 @@ namespace EventPlanner.Controllers
             });
         }
 
+
+        [Authorize]
+        [HttpPost("logout")]
+        public IActionResult Logout()
+        {
+            return Ok(new { message = "Logged out successfully" });
+        }
     }
 }
-
-       
 
 

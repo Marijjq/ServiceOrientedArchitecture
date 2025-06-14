@@ -5,6 +5,7 @@
             Pending,
             Accepted,
             Declined,
-            Maybe
+            Maybe,
+        Going
     }
 }

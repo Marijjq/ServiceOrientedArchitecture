@@ -6,11 +6,14 @@ using EventPlanner.Repositories.Implementations;
 using EventPlanner.Repositories.Interfaces;
 using EventPlanner.Services.Implementations;
 using EventPlanner.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Any;
 using Microsoft.OpenApi.Models;
+using System.Security.Claims;
+using System.Text;
 using System.Text.Json.Serialization;
 
 namespace EventPlanner
@@ -42,13 +45,13 @@ namespace EventPlanner
             builder.Services.AddScoped<IUserService, UserService>();
 
             builder.Services.AddIdentity<ApplicationUser, IdentityRole>()
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddDefaultTokenProviders();
+                .AddEntityFrameworkStores<ApplicationDbContext>()
+                .AddDefaultTokenProviders();
 
             builder.Services.AddAuthentication(options =>
             {
-                options.DefaultAuthenticateScheme = IdentityConstants.ApplicationScheme;
-                options.DefaultChallengeScheme = IdentityConstants.ApplicationScheme;
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
             })
              .AddJwtBearer(options =>
              {
@@ -60,7 +63,9 @@ namespace EventPlanner
                      ValidateIssuerSigningKey = true,
                      ValidIssuer = builder.Configuration["Jwt:Issuer"],
                      ValidAudience = builder.Configuration["Jwt:Audience"],
-                     IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
+                     IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+                     RoleClaimType = ClaimTypes.Role
+
                  };
              });
 
@@ -75,48 +80,49 @@ namespace EventPlanner
                 });
             // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
-            builder.Services.AddSwaggerGen(c =>
+
+            builder.Services.AddSwaggerGen(option =>
             {
-                c.SwaggerDoc("v1", new OpenApiInfo { Title = "Event API", Version = "v1" });
-
-                // Show enums as strings in Swagger UI
-                c.MapType<EventStatus>(() => new OpenApiSchema
+                option.SwaggerDoc("v1", new OpenApiInfo { Title = "Demo API", Version = "v1" });
+                option.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
                 {
-                    Type = "string",
-                    Enum = Enum.GetNames(typeof(EventStatus))
-                        .Select(name => new OpenApiString(name)).Cast<IOpenApiAny>().ToList()
-                });
-
-                // Add JWT Bearer support in Swagger
-                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-                {
-                    Description = "JWT Authorization header using the Bearer scheme. Example: \"Bearer {token}\"",
-                    Name = "Authorization",
                     In = ParameterLocation.Header,
+                    Description = "Please enter a valid token",
+                    Name = "Authorization",
                     Type = SecuritySchemeType.Http,
-                    Scheme = "Bearer",
-                    BearerFormat = "JWT"
+                    BearerFormat = "JWT",
+                    Scheme = "Bearer"
                 });
-
-                c.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
+                option.AddSecurityRequirement(new OpenApiSecurityRequirement
                 {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
-    });
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type=ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        new string [] {}
+                    }
+                });
             });
+
+            builder.Services.AddMiniProfiler(options =>
+            {
+                options.RouteBasePath = "/profiler";
+                options.ColorScheme = StackExchange.Profiling.ColorScheme.Auto;
+                options.TrackConnectionOpenClose = true;
+            }).AddEntityFramework();
+
+            builder.Services.AddMemoryCache();
+            builder.Services.AddResponseCaching();
+
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
@@ -128,6 +134,11 @@ namespace EventPlanner
             app.UseAuthentication();
             app.UseAuthorization();
 
+            app.UseStaticFiles();
+
+            app.UseMiniProfiler();
+
+            app.UseResponseCaching();
 
             app.MapControllers();
 
@@ -138,7 +149,7 @@ namespace EventPlanner
             var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
 
             // Seed roles
-            string[] roles = { "Admin", "User" };
+            string[] roles = { "Admin" };
             foreach (var role in roles)
             {
                 if (!await roleManager.RoleExistsAsync(role))

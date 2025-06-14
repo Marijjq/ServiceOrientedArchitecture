@@ -13,7 +13,6 @@ namespace EventPlanner.Models
 
         [Required]
         public DateTime SentAt { get; set; } = DateTime.UtcNow;
-
         public DateTime? RespondedAt { get; set; }
 
         public string? Message { get; set; }

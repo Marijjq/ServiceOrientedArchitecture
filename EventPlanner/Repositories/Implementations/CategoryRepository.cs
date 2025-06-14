@@ -14,12 +14,16 @@ namespace EventPlanner.Repositories.Implementations
         }
         public async Task<Category> GetCategoryByIdAsync(int id)
         {
-            return await _context.Categories.FindAsync(id);
+            return await _context.Categories
+                .AsNoTracking() 
+                .FirstOrDefaultAsync(c => c.Id == id);
 
         }
         public async Task<IEnumerable<Category>> GetAllCategoriesAsync()
         {
-            return await _context.Categories.ToListAsync();
+            return await _context.Categories
+                .AsNoTracking()
+                .ToListAsync();
         }
         public async Task AddCategoryAsync(Category category)
         { 
@@ -34,27 +38,20 @@ namespace EventPlanner.Repositories.Implementations
         }
         public async Task DeleteCategoryAsync(int id)
         {
-            var category = await GetCategoryByIdAsync(id);
+            var category = await _context.Categories.FirstOrDefaultAsync(c => c.Id == id);
             if (category != null)
             {
                 _context.Categories.Remove(category);
                 await _context.SaveChangesAsync();
             }
-
         }
 
         // Additional
         public async Task<Category> GetCategoryByNameAsync(string name)
         {
-            try
-            {
                 return await _context.Categories
-                    .FirstOrDefaultAsync(c => c.Name == name);
-            }
-            catch (Exception ex)
-            {
-                throw new Exception($"Error retrieving category with name {name}: {ex.Message}", ex);
-            }
+                .AsNoTracking()
+                .FirstOrDefaultAsync(c => c.Name == name);
         }
     }
 }

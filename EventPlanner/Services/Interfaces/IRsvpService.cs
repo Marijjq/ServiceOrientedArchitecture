@@ -16,7 +16,7 @@ namespace EventPlanner.Services.Interfaces
         Task<IEnumerable<RsvpDTO>> GetRsvpsByEventIdAsync(int eventId);
         Task<IEnumerable<RsvpDTO>> GetRsvpsByUserIdAsync(int userId);
         Task<RsvpDTO> RespondToInviteAsync(int inviteId, RSVPStatus responseStatus);
-        Task<bool> UpdateStatusAsync(int id, RSVPStatus status); // "Attending", "NotAttending", "Cancelled"
-        Task<RsvpDTO> CancelRsvpAsync(int id); // Explicit method for cancellation
+        Task<bool> UpdateStatusAsync(int id, RSVPStatus status); 
+        Task<RsvpDTO> CancelRsvpAsync(int id); 
     }
 }
