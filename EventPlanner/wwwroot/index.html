@@ -41,7 +41,7 @@
                     </tr>
                 </thead>
                 <tbody id="eventsTableBody">
-                    <tr><td colspan="6">Loading events...</td></tr>
+                    <tr><td colspan="6" class="text-center">Loading events...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -49,36 +49,37 @@
 
     <script>
         async function loadPublicEvents() {
+            const tableBody = document.getElementById('eventsTableBody');
             try {
                 const res = await fetch('/api/event');
-                const events = await res.json();
+                if (!res.ok) throw new Error('Failed to fetch');
 
-                const tableBody = document.getElementById('eventsTableBody');
+                const events = await res.json();
                 tableBody.innerHTML = '';
 
-                const publicEvents = events.filter(e => !e.isPrivate);
+                const publicEvents = events.filter(e => !e.isPrivate && e.status === 0); // status 0 = Upcoming
 
                 if (publicEvents.length === 0) {
-                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No public events available.</td></tr>';
+                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No upcoming public events.</td></tr>';
                     return;
                 }
 
                 publicEvents.forEach(e => {
                     const row = `
-                <tr>
-                  <td>${e.title}</td>
-                  <td>${new Date(e.startDate).toLocaleString()}</td>
-                  <td>${new Date(e.endDate).toLocaleString()}</td>
-                  <td>${e.location}</td>
-                  <td>${e.categoryName}</td>
-                  <td>${e.userName}</td>
-                </tr>
-              `;
+                        <tr>
+                            <td>${e.title}</td>
+                            <td>${new Date(e.startDate).toLocaleString()}</td>
+                            <td>${new Date(e.endDate).toLocaleString()}</td>
+                            <td>${e.location}</td>
+                            <td>${e.categoryName ?? '—'}</td>
+                            <td>${e.userName ?? '—'}</td>
+                        </tr>`;
                     tableBody.innerHTML += row;
                 });
             } catch (err) {
-                document.getElementById('eventsTableBody').innerHTML =
-                    '<tr><td colspan="6" class="text-danger text-center">Error loading events.</td></tr>';
+                console.error(err);
+                tableBody.innerHTML =
+                    '<tr><td colspan="6" class="text-danger text-center">Error loading events. Please try again later.</td></tr>';
             }
         }
 

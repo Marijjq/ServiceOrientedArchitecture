@@ -19,7 +19,7 @@
                 <label for="loginPassword" class="form-label">Password</label>
                 <input type="password" class="form-control" id="loginPassword" required>
             </div>
-            <button type="submit" class="btn btn-primary w-100">Login</button>
+            <button type="submit" class="btn btn-primary w-100" id="loginBtn">Login</button>
             <div class="mt-3 text-center">
                 <a href="register.html">Don't have an account? Register</a>
             </div>
@@ -27,25 +27,40 @@
     </div>
 
     <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const res = await fetch('/api/account/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          emailOrUsername: document.getElementById('emailOrUsername').value,
-          password: document.getElementById('loginPassword').value
-        })
-      });
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
 
-      if (res.ok) {
-        const data = await res.json();
-        localStorage.setItem('token', data.token);
-        window.location.href = '/home.html';
-      } else {
-        alert('Login failed');
-      }
-    });
+            const button = document.getElementById('loginBtn');
+            button.disabled = true;
+            button.innerText = 'Logging in...';
+
+            const res = await fetch('/api/account/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    emailOrUsername: document.getElementById('emailOrUsername').value,
+                    password: document.getElementById('loginPassword').value
+                })
+            });
+
+            button.disabled = false;
+            button.innerText = 'Login';
+
+            if (res.ok) {
+                const data = await res.json();
+                const token = data.token;
+                localStorage.setItem('token', token);
+
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                localStorage.setItem('userId', payload.sub);
+                localStorage.setItem('role', payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/role']);
+
+                window.location.href = '/home.html';
+            } else {
+                const err = await res.json();
+                alert(err.message || 'Login failed.');
+            }
+        });
     </script>
 
 </body>

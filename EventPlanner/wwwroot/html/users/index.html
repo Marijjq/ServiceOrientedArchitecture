@@ -1,4 +1,5 @@
-﻿<html lang="en">
+﻿<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Users</title>
@@ -10,59 +11,96 @@
     <div id="navbar"></div>
 
     <div class="container mt-5">
-        <h2>Users</h2>
-        <a href="form.html" class="btn btn-success mb-3">Create User</a>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Username</th>
-                    <th>Email</th>
-                    <th>First Name</th>
-                    <th>Last Name</th>
-                    <th>Phone</th>
-                    <th>Role</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="userTableBody"></tbody>
-        </table>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h2>Users</h2>
+            <a href="form.html" class="btn btn-success">Create User</a>
+        </div>
+
+        <div class="mb-3">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search by username, email, or name...">
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-hover">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Username</th>
+                        <th>Email</th>
+                        <th>First Name</th>
+                        <th>Last Name</th>
+                        <th>Phone</th>
+                        <th>Role</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
     </div>
 
     <script>
         const token = localStorage.getItem("token");
+        if (!token) window.location.href = "/auth/login.html";
+
+        let allUsers = [];
+
         fetch("/api/user", {
             headers: { Authorization: `Bearer ${token}` }
         })
             .then(res => res.json())
             .then(users => {
-                const tbody = document.getElementById("userTableBody");
-                users.forEach(user => {
-                    const row = `
-                        <tr>
-                            <td>${user.username}</td>
-                            <td>${user.email}</td>
-                            <td>${user.firstName}</td>
-                            <td>${user.lastName}</td>
-                            <td>${user.phoneNumber}</td>
-                            <td>${user.role}</td>
-                            <td>
-                                <a href="form.html?id=${user.id}" class="btn btn-sm btn-primary">Edit</a>
-                                <button onclick="deleteUser('${user.id}')" class="btn btn-sm btn-danger">Delete</button>
-                            </td>
-                        </tr>`;
-                    tbody.innerHTML += row;
-                });
+                allUsers = users;
+                renderUsers(users);
             });
 
-        function deleteUser(id) {
-            if (confirm("Are you sure?")) {
-                fetch(`/api/user/${id}`, {
-                    method: 'DELETE',
-                    headers: { Authorization: `Bearer ${token}` }
-                }).then(() => window.location.reload());
+        function renderUsers(users) {
+            const tbody = document.getElementById("userTableBody");
+            if (!users.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center">No users found.</td></tr>';
+                return;
             }
+
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                  <td>${user.username}</td>
+                  <td>${user.email}</td>
+                  <td>${user.firstName}</td>
+                  <td>${user.lastName}</td>
+                  <td>${user.phoneNumber}</td>
+                  <td>${user.role}</td>
+                  <td>
+                    <a href="form.html?id=${user.id}" class="btn btn-sm btn-primary">Edit</a>
+                    <button onclick="deleteUser('${user.id}')" class="btn btn-sm btn-danger ms-1">Delete</button>
+                  </td>
+                </tr>`).join('');
         }
+
+        function deleteUser(id) {
+            if (!confirm("Are you sure you want to delete this user?")) return;
+
+            fetch(`/api/user/${id}`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${token}` }
+            }).then(res => {
+                if (res.ok) window.location.reload();
+                else alert("Failed to delete user.");
+            });
+        }
+
+        document.getElementById("searchInput").addEventListener("input", function () {
+            const query = this.value.toLowerCase();
+            const filtered = allUsers.filter(user =>
+                user.username.toLowerCase().includes(query) ||
+                user.email.toLowerCase().includes(query) ||
+                (user.firstName && user.firstName.toLowerCase().includes(query)) ||
+                (user.lastName && user.lastName.toLowerCase().includes(query))
+            );
+            renderUsers(filtered);
+        });
     </script>
+
     <script src="/shared/navbar.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>

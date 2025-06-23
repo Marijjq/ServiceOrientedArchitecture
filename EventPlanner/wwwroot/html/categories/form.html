@@ -10,7 +10,6 @@
 
     <div id="navbar"></div>
 
-
     <div class="container mt-5">
         <h3 id="formTitle">Create Category</h3>
         <form id="categoryForm">
@@ -30,33 +29,6 @@
     <script>
         const token = localStorage.getItem('token');
         if (!token) window.location.href = "/auth/login.html";
-
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        const roleList = Array.isArray(payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"]) ?
-            payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"] :
-            [payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"]];
-
-        const navLinks = document.getElementById("nav-links");
-        if (roleList.includes("Admin")) {
-            navLinks.innerHTML += `
-                        <li class="nav-item"><a class="nav-link" href="/users/index.html">Users</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/categories/index.html">Categories</a></li>`;
-        }
-        if (roleList.includes("Organizer")) {
-            navLinks.innerHTML += `
-                        <li class="nav-item"><a class="nav-link" href="/events/index.html">Events</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/invites/index.html">Invites</a></li>`;
-        }
-        if (roleList.includes("User")) {
-            navLinks.innerHTML += `
-                        <li class="nav-item"><a class="nav-link" href="/rsvps/index.html">RSVPs</a></li>
-                        <li class="nav-item"><a class="nav-link" href="/profile.html">Profile</a></li>`;
-        }
-
-        function logout() {
-            localStorage.removeItem("token");
-            window.location.href = "/auth/login.html";
-        }
 
         const params = new URLSearchParams(window.location.search);
         const id = params.get("id");

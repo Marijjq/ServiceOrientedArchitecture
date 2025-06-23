@@ -1,80 +1,125 @@
 ﻿<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>RSVP Form</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="UTF-8" />
+    <title>Create/Edit Invite</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
 <body>
-
     <div id="navbar"></div>
 
     <div class="container mt-5">
-        <h2 id="formTitle">Create RSVP</h2>
-        <form id="rsvpForm">
+        <h2 id="formTitle">Create Invite</h2>
+        <form id="inviteForm">
+            <div class="mb-3">
+                <label for="inviterId" class="form-label">Inviter ID</label>
+                <input type="text" class="form-control" id="inviterId" required />
+            </div>
+            <div class="mb-3">
+                <label for="inviteeId" class="form-label">Invitee ID</label>
+                <input type="text" class="form-control" id="inviteeId" required />
+            </div>
             <div class="mb-3">
                 <label for="eventId" class="form-label">Event ID</label>
-                <input type="number" class="form-control" id="eventId" required>
+                <input type="number" class="form-control" id="eventId" required />
             </div>
             <div class="mb-3">
-                <label for="status" class="form-label">Status</label>
-                <select class="form-select" id="status" required>
-                    <option value="Going">Going</option>
-                    <option value="Maybe">Maybe</option>
-                    <option value="NotGoing">NotGoing</option>
-                </select>
+                <label for="message" class="form-label">Message (optional)</label>
+                <textarea class="form-control" id="message"></textarea>
             </div>
+            <div class="mb-3">
+                <label for="expiresAt" class="form-label">Expires At (optional)</label>
+                <input type="datetime-local" class="form-control" id="expiresAt" />
+            </div>
+
+            <!-- Only visible for editing -->
+            <div id="editFields" style="display: none;">
+                <div class="mb-3">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status">
+                        <option value="Pending">Pending</option>
+                        <option value="Accepted">Accepted</option>
+                        <option value="Declined">Declined</option>
+                        <option value="Expired">Expired</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="respondedAt" class="form-label">Responded At</label>
+                    <input type="datetime-local" class="form-control" id="respondedAt" />
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-success">Submit</button>
+            <a href="index.html" class="btn btn-secondary ms-2">Cancel</a>
         </form>
     </div>
 
+    <script src="/shared/navbar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        const token = localStorage.getItem('token');
-        if (!token) window.location.href = '/auth/login.html';
+        const token = localStorage.getItem("token");
+        if (!token) window.location.href = "/auth/login.html";
 
-        const urlParams = new URLSearchParams(window.location.search);
-        const rsvpId = urlParams.get('id');
+        const params = new URLSearchParams(window.location.search);
+        const id = params.get("id");
+        const editMode = !!id;
 
-        if (rsvpId) {
-            document.getElementById('formTitle').innerText = 'Edit RSVP';
-            fetch(`/api/rsvp/${rsvpId}`, {
+        document.getElementById("formTitle").innerText = editMode ? "Edit Invite" : "Create Invite";
+        if (editMode) document.getElementById("editFields").style.display = "block";
+
+        if (editMode) {
+            fetch(`/api/invite/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
                 .then(res => res.json())
-                .then(rsvp => {
-                    document.getElementById('eventId').value = rsvp.eventId;
-                    document.getElementById('status').value = rsvp.status;
+                .then(invite => {
+                    document.getElementById("inviterId").value = invite.inviterId;
+                    document.getElementById("inviteeId").value = invite.inviteeId;
+                    document.getElementById("eventId").value = invite.eventId;
+                    document.getElementById("message").value = invite.message ?? "";
+                    if (invite.expiresAt) document.getElementById("expiresAt").value = invite.expiresAt.slice(0, 16);
+                    document.getElementById("status").value = invite.status;
+                    if (invite.respondedAt) document.getElementById("respondedAt").value = invite.respondedAt.slice(0, 16);
                 });
         }
 
-        document.getElementById('rsvpForm').addEventListener('submit', async (e) => {
+        document.getElementById("inviteForm").addEventListener("submit", async (e) => {
             e.preventDefault();
-            const method = rsvpId ? 'PUT' : 'POST';
-            const url = rsvpId ? `/api/rsvp/${rsvpId}` : '/api/rsvp';
 
-            const payload = {
-                eventId: +document.getElementById('eventId').value,
-                status: document.getElementById('status').value
+            const basePayload = {
+                inviterId: document.getElementById("inviterId").value,
+                inviteeId: document.getElementById("inviteeId").value,
+                eventId: parseInt(document.getElementById("eventId").value),
+                message: document.getElementById("message").value || null,
+                expiresAt: document.getElementById("expiresAt").value || null
             };
+
+            const updateFields = {
+                status: document.getElementById("status").value,
+                respondedAt: document.getElementById("respondedAt").value || null
+            };
+
+            const payload = editMode ? { ...updateFields, message: basePayload.message } : basePayload;
+            const method = editMode ? "PUT" : "POST";
+            const url = editMode ? `/api/invite/${id}` : "/api/invite";
 
             const res = await fetch(url, {
                 method,
                 headers: {
-                    'Content-Type': 'application/json',
+                    "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`
                 },
                 body: JSON.stringify(payload)
             });
 
             if (res.ok) {
-                window.location.href = 'index.html';
+                window.location.href = "index.html";
             } else {
-                const error = await res.json();
-                alert(error.message || 'Error saving RSVP');
+                const err = await res.json();
+                alert(err.message || "Error saving invite.");
             }
         });
     </script>
-    <script src="/shared/navbar.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

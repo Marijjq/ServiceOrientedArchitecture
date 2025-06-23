@@ -12,47 +12,60 @@
 
     <div class="container mt-5">
         <h2 id="formTitle">Create User</h2>
+
         <form id="userForm">
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label>Username</label>
-                    <input type="text" class="form-control" id="username">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" class="form-control" id="username" required />
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label>Email</label>
-                    <input type="email" class="form-control" id="email">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" required />
                 </div>
             </div>
             <div class="row">
                 <div class="col-md-6 mb-3">
-                    <label>First Name</label>
-                    <input type="text" class="form-control" id="firstName">
+                    <label for="firstName" class="form-label">First Name</label>
+                    <input type="text" class="form-control" id="firstName" />
                 </div>
                 <div class="col-md-6 mb-3">
-                    <label>Last Name</label>
-                    <input type="text" class="form-control" id="lastName">
+                    <label for="lastName" class="form-label">Last Name</label>
+                    <input type="text" class="form-control" id="lastName" />
                 </div>
             </div>
             <div class="mb-3">
-                <label>Phone Number</label>
-                <input type="tel" class="form-control" id="phoneNumber">
+                <label for="phoneNumber" class="form-label">Phone Number</label>
+                <input type="tel" class="form-control" id="phoneNumber" />
+            </div>
+            <div class="mb-3" id="roleDiv">
+                <label for="role" class="form-label">Role</label>
+                <select class="form-select" id="role">
+                    <option value="User">User</option>
+                    <option value="Organizer">Organizer</option>
+                    <option value="Admin">Admin</option>
+                </select>
             </div>
             <div class="mb-3" id="passwordDiv">
-                <label>Password</label>
-                <input type="password" class="form-control" id="password">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" required />
             </div>
             <button type="submit" class="btn btn-primary">Save</button>
+            <a href="index.html" class="btn btn-secondary ms-2">Cancel</a>
         </form>
     </div>
 
     <script>
         const token = localStorage.getItem("token");
+        if (!token) window.location.href = "/auth/login.html";
+
         const params = new URLSearchParams(window.location.search);
         const id = params.get("id");
 
         if (id) {
             document.getElementById("formTitle").innerText = "Edit User";
             document.getElementById("passwordDiv").style.display = "none";
+            document.getElementById("roleDiv").style.display = "none";
 
             fetch(`/api/user/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
@@ -69,8 +82,7 @@
 
         document.getElementById("userForm").addEventListener("submit", async (e) => {
             e.preventDefault();
-            const method = id ? "PUT" : "POST";
-            const url = id ? `/api/user/${id}` : "/api/user";
+
             const body = id ? {
                 firstName: document.getElementById("firstName").value,
                 lastName: document.getElementById("lastName").value,
@@ -81,11 +93,12 @@
                 password: document.getElementById("password").value,
                 firstName: document.getElementById("firstName").value,
                 lastName: document.getElementById("lastName").value,
-                phoneNumber: document.getElementById("phoneNumber").value
+                phoneNumber: document.getElementById("phoneNumber").value,
+                role: document.getElementById("role").value
             };
 
-            const res = await fetch(url, {
-                method,
+            const res = await fetch(id ? `/api/user/${id}` : "/api/user", {
+                method: id ? "PUT" : "POST",
                 headers: {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`
@@ -93,11 +106,16 @@
                 body: JSON.stringify(body)
             });
 
-            if (res.ok) window.location.href = "index.html";
-            else alert("Failed to save user");
+            if (res.ok) {
+                window.location.href = "index.html";
+            } else {
+                const err = await res.json();
+                alert(err.message || "Failed to save user.");
+            }
         });
     </script>
-    <script src="/navbar.js"></script>
+
+    <script src="/shared/navbar.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
