@@ -12,12 +12,15 @@ namespace EventPlanner.Repositories.Implementations
         {
             _context = context;
         }
-        public async Task<RSVP> GetRsvpByIdAsync(int rsvpId)
+        public async Task<RSVP?> GetRsvpByIdAsync(int id)
         {
             return await _context.RSVPs
+                .Include(r => r.Event)
+                .Include(r => r.User)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(r=>r.Id == rsvpId);
+                .FirstOrDefaultAsync(r => r.Id == id);
         }
+
         public async Task<IEnumerable<RSVP>> GetAllRsvpsAsync()
         {
             return await _context.RSVPs
@@ -48,10 +51,13 @@ namespace EventPlanner.Repositories.Implementations
         public async Task<IEnumerable<RSVP>> GetRsvpByEventIdAsync(int eventId)
         {
             return await _context.RSVPs
+                .Include(r => r.Event)
+                .Include(r => r.User)
                 .Where(r => r.EventId == eventId)
                 .AsNoTracking()
                 .ToListAsync();
         }
+
 
         public async Task<IEnumerable<RSVP>> GetRsvpsByUserIdAsync(string userId)
         {

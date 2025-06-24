@@ -6,6 +6,6 @@
             Accepted,
             Declined,
             Maybe,
-        Going
+            Going
     }
 }

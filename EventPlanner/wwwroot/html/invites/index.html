@@ -18,11 +18,13 @@
         <input type="text" id="searchInput" class="form-control mb-3" placeholder="Search by Event or User" oninput="loadInvites()">
 
         <div class="table-responsive">
-            <table class="table table-bordered">
+            <table class="table table-bordered align-middle text-center">
                 <thead class="table-light">
                     <tr>
-                        <th>Inviter</th>
-                        <th>Invitee</th>
+                        <th>Inviter ID</th>
+                        <th>Inviter Name</th>
+                        <th>Invitee ID</th>
+                        <th>Invitee Name</th>
                         <th>Event</th>
                         <th>Status</th>
                         <th>Message</th>
@@ -41,6 +43,39 @@
         const token = localStorage.getItem('token');
         if (!token) window.location.href = '/auth/login.html';
 
+        function getReadableStatus(status) {
+            // If it's a number, map directly
+            if (typeof status === 'number') {
+                switch (status) {
+                    case 0: return 'Pending';
+                    case 1: return 'Accepted';
+                    case 2: return 'Declined';
+                    case 3: return 'Maybe';
+                    case 4: return 'Going';
+                    default: return 'Unknown';
+                }
+            }
+
+            // If it's a string, normalize and map
+            const normalized = status.toString().toLowerCase();
+            switch (normalized) {
+                case 'pending': return 'Pending';
+                case 'accepted': return 'Accepted';
+                case 'declined': return 'Declined';
+                case 'maybe': return 'Maybe';
+                case 'going': return 'Going';
+                case '0': return 'Pending';
+                case '1': return 'Accepted';
+                case '2': return 'Declined';
+                case '3': return 'Maybe';
+                case '4': return 'Going';
+                default:
+                    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+            }
+        }
+
+
+
         async function loadInvites() {
             const keyword = document.getElementById('searchInput').value.trim();
             const url = keyword ? `/api/invite/search/${encodeURIComponent(keyword)}` : '/api/invite';
@@ -48,23 +83,27 @@
             const res = await fetch(url, {
                 headers: { Authorization: `Bearer ${token}` }
             });
-            const data = await res.json();
 
+            const data = await res.json();
             const table = document.getElementById('inviteTableBody');
+
             table.innerHTML = data.map(invite => `
-            <tr>
-              <td>${invite.inviterUserName || invite.inviterId}</td>
-              <td>${invite.inviteeUserName || invite.inviteeId}</td>
-              <td>${invite.eventTitle || invite.eventId}</td>
-              <td>${invite.status}</td>
-              <td>${invite.message || ''}</td>
-              <td>${invite.expiresAt ? new Date(invite.expiresAt).toLocaleString() : ''}</td>
-              <td>${invite.respondedAt ? new Date(invite.respondedAt).toLocaleString() : ''}</td>
-              <td>
-                <a href="form.html?id=${invite.id}" class="btn btn-sm btn-primary">Edit</a>
-                <button onclick="deleteInvite(${invite.id})" class="btn btn-sm btn-danger ms-1">Delete</button>
-              </td>
-            </tr>`).join('');
+                    <tr>
+                        <td>${invite.inviterId || 'N/A'}</td>
+                        <td>${invite.inviterName || 'N/A'}</td>
+                        <td>${invite.inviteeId || 'N/A'}</td>
+                        <td>${invite.inviteeName || 'N/A'}</td>
+                        <td>${invite.eventTitle || invite.eventId}</td>
+                        <td>${getReadableStatus(invite.status)}</td>
+                        <td>${invite.message || ''}</td>
+                        <td>${invite.expiresAt ? new Date(invite.expiresAt).toLocaleString() : ''}</td>
+                        <td>${invite.respondedAt ? new Date(invite.respondedAt).toLocaleString() : ''}</td>
+                        <td>
+                            <a href="form.html?id=${invite.id}" class="btn btn-sm btn-primary">Edit</a>
+                            <button onclick="deleteInvite(${invite.id})" class="btn btn-sm btn-danger ms-1">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
         }
 
         async function deleteInvite(id) {

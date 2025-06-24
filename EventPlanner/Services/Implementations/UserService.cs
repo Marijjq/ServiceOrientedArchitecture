@@ -69,29 +69,54 @@ namespace EventPlanner.Services.Implementations
             {
                 throw new ArgumentException("User with this email already exists.");
             }
+
             var user = _mapper.Map<ApplicationUser>(userDto);
-            await _userRepository.AddUserAsync(user);
+
+            var result = await _userManager.CreateAsync(user, userDto.Password);
+            if (!result.Succeeded)
+            {
+                var errorMessages = string.Join("; ", result.Errors.Select(e => e.Description));
+                throw new ApplicationException($"Failed to create user: {errorMessages}");
+            }
+
+            await _userManager.AddToRoleAsync(user, userDto.Role);
+
             _cache.Remove("users");
             return _mapper.Map<UserDTO>(user);
-
         }
         public async Task<UserDTO> UpdateUserAsync(string userId, UserUpdateDTO userDto, string loggedInUserId)
         {
-            if (userId != loggedInUserId)
-            {
-                throw new UnauthorizedAccessException("You can only update your own user information.");
-            }
+            var loggedInUser = await _userManager.FindByIdAsync(loggedInUserId);
+            if (loggedInUser == null)
+                throw new ArgumentException("Logged-in user not found.");
+
+            var isAdmin = await _userManager.IsInRoleAsync(loggedInUser, "Admin");
+
+            if (userId != loggedInUserId && !isAdmin)
+                throw new UnauthorizedAccessException("You are not authorized to update this user.");
 
             var existingUser = await _userRepository.GetUserByIdAsync(userId);
             if (existingUser == null)
+                throw new ArgumentException("User to update not found.");
+
+            _mapper.Map(userDto, existingUser);
+            await _userRepository.UpdateUserAsync(existingUser);
+
+            // Role update logic...
+            if (isAdmin && !string.IsNullOrEmpty(userDto.Role))
             {
-                throw new ArgumentException("User not found.");
+                var currentRoles = await _userManager.GetRolesAsync(existingUser);
+                var currentRole = currentRoles.FirstOrDefault();
+
+                if (currentRole != userDto.Role)
+                {
+                    if (!string.IsNullOrEmpty(currentRole))
+                        await _userManager.RemoveFromRoleAsync(existingUser, currentRole);
+
+                    await _userManager.AddToRoleAsync(existingUser, userDto.Role);
+                }
             }
 
-            // Map changes from DTO to the existing user entity
-            _mapper.Map(userDto, existingUser);
-
-            await _userRepository.UpdateUserAsync(existingUser);
             _cache.Remove("users");
             return _mapper.Map<UserDTO>(existingUser);
         }

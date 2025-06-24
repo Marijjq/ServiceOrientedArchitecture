@@ -33,7 +33,7 @@
                 <input type="datetime-local" class="form-control" id="expiresAt" />
             </div>
 
-            <!-- Only visible for editing -->
+            <!-- Only shown for edit mode -->
             <div id="editFields" style="display: none;">
                 <div class="mb-3">
                     <label for="status" class="form-label">Status</label>
@@ -87,37 +87,50 @@
         document.getElementById("inviteForm").addEventListener("submit", async (e) => {
             e.preventDefault();
 
-            const basePayload = {
-                inviterId: document.getElementById("inviterId").value,
-                inviteeId: document.getElementById("inviteeId").value,
-                eventId: parseInt(document.getElementById("eventId").value),
-                message: document.getElementById("message").value || null,
-                expiresAt: document.getElementById("expiresAt").value || null
-            };
+            const inviterId = document.getElementById("inviterId").value.trim();
+            const inviteeId = document.getElementById("inviteeId").value.trim();
+            const eventId = parseInt(document.getElementById("eventId").value);
+            const message = document.getElementById("message").value.trim() || null;
+            const expiresInput = document.getElementById("expiresAt").value;
+            const expiresAt = expiresInput ? new Date(expiresInput).toISOString() : null;
+
+            const basePayload = { inviterId, inviteeId, eventId, message, expiresAt };
 
             const updateFields = {
-                status: document.getElementById("status").value,
-                respondedAt: document.getElementById("respondedAt").value || null
+                status: document.getElementById("status")?.value,
+                respondedAt: document.getElementById("respondedAt")?.value || null
             };
 
-            const payload = editMode ? { ...updateFields, message: basePayload.message } : basePayload;
-            const method = editMode ? "PUT" : "POST";
+            const payload = editMode ? { ...basePayload, ...updateFields } : basePayload;
+            console.log("Sending payload:", payload);
+
             const url = editMode ? `/api/invite/${id}` : "/api/invite";
+            const method = editMode ? "PUT" : "POST";
 
-            const res = await fetch(url, {
-                method,
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`
-                },
-                body: JSON.stringify(payload)
-            });
+            try {
+                const res = await fetch(url, {
+                    method,
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify(payload)
+                });
 
-            if (res.ok) {
-                window.location.href = "index.html";
-            } else {
-                const err = await res.json();
-                alert(err.message || "Error saving invite.");
+                if (res.ok) {
+                    window.location.href = "index.html";
+                } else {
+                    const text = await res.text();
+                    try {
+                        const json = JSON.parse(text);
+                        alert(json.message || "Error saving invite.");
+                    } catch {
+                        alert(text || "Unexpected error occurred.");
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Network error. Please try again.");
             }
         });
     </script>

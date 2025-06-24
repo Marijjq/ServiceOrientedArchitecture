@@ -6,16 +6,16 @@ namespace EventPlanner.DTOs.Invite
     public class InviteDTO
     {
         public int Id { get; set; }
-        public InviteStatus Status { get; set; } // Enum as string for readability
+        public InviteStatus Status { get; set; } 
         public DateTime SentAt { get; set; }
         public DateTime? RespondedAt { get; set; }
         public string? Message { get; set; }
         public string InviterId { get; set; }
-        public string InviterName { get; set; } // Flattened from User
+        public string InviterName { get; set; } 
         public string InviteeId { get; set; }
-        public string InviteeName { get; set; } // Flattened from User
+        public string InviteeName { get; set; } 
         public int EventId { get; set; }
-        public string EventTitle { get; set; } // Flattened from Event
+        public string EventTitle { get; set; } 
         public DateTime? ExpiresAt { get; set; }
     }
 }

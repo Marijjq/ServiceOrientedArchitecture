@@ -64,8 +64,8 @@ namespace EventPlanner
                      ValidIssuer = builder.Configuration["Jwt:Issuer"],
                      ValidAudience = builder.Configuration["Jwt:Audience"],
                      IssuerSigningKey = new SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+                     NameClaimType = ClaimTypes.NameIdentifier,
                      RoleClaimType = ClaimTypes.Role
-
                  };
              });
 
@@ -153,7 +153,7 @@ namespace EventPlanner
             var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
 
             // Seed roles
-            string[] roles = { "Admin" };
+            string[] roles = { "Admin", "Organizer" };
             foreach (var role in roles)
             {
                 if (!await roleManager.RoleExistsAsync(role))

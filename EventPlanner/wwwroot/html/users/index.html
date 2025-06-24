@@ -24,6 +24,7 @@
             <table class="table table-bordered table-hover">
                 <thead class="table-primary">
                     <tr>
+                        <th>ID</th>
                         <th>Username</th>
                         <th>Email</th>
                         <th>First Name</th>
@@ -46,6 +47,7 @@
 
         let allUsers = [];
 
+        // Load users on page load
         fetch("/api/user", {
             headers: { Authorization: `Bearer ${token}` }
         })
@@ -53,6 +55,10 @@
             .then(users => {
                 allUsers = users;
                 renderUsers(users);
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById("userTableBody").innerHTML = '<tr><td colspan="7" class="text-center text-danger">Failed to load users.</td></tr>';
             });
 
         function renderUsers(users) {
@@ -64,29 +70,40 @@
 
             tbody.innerHTML = users.map(user => `
                 <tr>
-                  <td>${user.username}</td>
-                  <td>${user.email}</td>
-                  <td>${user.firstName}</td>
-                  <td>${user.lastName}</td>
-                  <td>${user.phoneNumber}</td>
-                  <td>${user.role}</td>
-                  <td>
-                    <a href="form.html?id=${user.id}" class="btn btn-sm btn-primary">Edit</a>
-                    <button onclick="deleteUser('${user.id}')" class="btn btn-sm btn-danger ms-1">Delete</button>
-                  </td>
+                    <td>${user.id}</td>
+                    <td>${user.username}</td>
+                    <td>${user.email}</td>
+                    <td>${user.firstName || ''}</td>
+                    <td>${user.lastName || ''}</td>
+                    <td>${user.phoneNumber || ''}</td>
+                    <td>${user.role}</td>
+                    <td>
+                        <a href="form.html?id=${user.id}" class="btn btn-sm btn-primary">Edit</a>
+                        <button onclick="deleteUser('${user.id}')" class="btn btn-sm btn-danger ms-1">Delete</button>
+                    </td>
                 </tr>`).join('');
         }
 
-        function deleteUser(id) {
+        async function deleteUser(id) {
             if (!confirm("Are you sure you want to delete this user?")) return;
 
-            fetch(`/api/user/${id}`, {
-                method: 'DELETE',
-                headers: { Authorization: `Bearer ${token}` }
-            }).then(res => {
-                if (res.ok) window.location.reload();
-                else alert("Failed to delete user.");
-            });
+            try {
+                const res = await fetch(`/api/user/${id}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+
+                if (res.ok) {
+                    allUsers = allUsers.filter(user => user.id !== id);
+                    renderUsers(allUsers);
+                } else {
+                    const text = await res.text();
+                    alert(text || "Failed to delete user.");
+                }
+            } catch (error) {
+                console.error(error);
+                alert("An error occurred while deleting user.");
+            }
         }
 
         document.getElementById("searchInput").addEventListener("input", function () {

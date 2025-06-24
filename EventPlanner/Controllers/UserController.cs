@@ -3,25 +3,25 @@ using EventPlanner.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
+using System.Security.Claims;
 
 namespace EventPlanner.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-   // [Authorize]
+    [Authorize]
     public class UserController : ControllerBase
     {
         private readonly IUserService _userService;
-       // private readonly IMemoryCache _cache;
-        //private const string AllProductsCacheKey = "AllUsersCache";
+       private readonly IMemoryCache _cache;
+      private const string AllProductsCacheKey = "AllUsersCache";
 
-        public UserController(IUserService userService /*IMemoryCache cache*/)
+        public UserController(IUserService userService, IMemoryCache cache)
         {
             _userService = userService;
-            //_cache = cache;
+            _cache = cache;
         }
 
-        // GET: api/user
         [HttpGet]
         // [Authorize(Roles = "Admin")]
         [ResponseCache(Duration = 60, Location = ResponseCacheLocation.Client)]
@@ -31,21 +31,24 @@ namespace EventPlanner.Controllers
             return Ok(users);
         }
 
-        // GET: api/user/{id}
-       [HttpGet("{id}")]
+        [HttpGet("{id}")]
+        [Authorize]
         public async Task<ActionResult<UserDTO>> GetUserById(string id)
         {
-            var currentUserId = User.FindFirst("id")?.Value;
-            if (id != currentUserId && !User.IsInRole("Admin"))
-                return Forbid();
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // SIMPLIFIED: Built-in role check
+            var isAdmin = User.IsInRole("Admin");
+
+            if (id != currentUserId && !isAdmin)
+                return StatusCode(403, "You are not authorized to view this user's info.");
 
             var user = await _userService.GetUserByIdAsync(id);
             if (user == null) return NotFound("User not found.");
             return Ok(user);
-
         }
 
-        // POST: api/user
+
         [HttpPost]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserDTO>> CreateUser([FromBody] UserCreateDTO user)
@@ -56,12 +59,16 @@ namespace EventPlanner.Controllers
             return CreatedAtAction(nameof(GetUserById), new { id = createdUser.Id }, createdUser);
         }
 
-        // PUT: api/user/{id}
-        [Authorize(Roles = "Admin")]
         [HttpPut("{id}")]
+        [Authorize]
         public async Task<IActionResult> UpdateUser(string id, [FromBody] UserUpdateDTO userDto)
         {
-            var currentUserId = User.FindFirst("id")?.Value;
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value; 
+            var isAdmin = User.IsInRole("Admin");
+
+            if (id != currentUserId && !isAdmin)
+                return Forbid("Only the user or an admin can update this information.");
+
             try
             {
                 await _userService.UpdateUserAsync(id, userDto, currentUserId);
@@ -75,11 +82,9 @@ namespace EventPlanner.Controllers
             {
                 return NotFound(ex.Message);
             }
-
         }
 
 
-        // DELETE: api/user/{id}
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteUser(string id)
@@ -91,7 +96,6 @@ namespace EventPlanner.Controllers
             return NoContent();
         }
 
-        // GET: api/user/email/{email}
         [HttpGet("email/{email}")]
         [Authorize(Roles = "Admin")]
         public async Task<ActionResult<UserDTO>> GetUserByEmail(string email)

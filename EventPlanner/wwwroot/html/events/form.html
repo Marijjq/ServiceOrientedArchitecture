@@ -59,7 +59,7 @@
             <div class="row">
                 <div class="col-md-6 mb-3">
                     <label for="categoryId" class="form-label">Category</label>
-                    <select class="form-select" id="categoryId"></select>
+                    <select class="form-select" id="categoryId" required></select>
                 </div>
                 <div class="col-md-6 mb-3">
                     <div class="form-check mt-4">
@@ -103,17 +103,24 @@
             fetch(`/api/event/${id}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
-                .then(res => res.json())
+                .then(res => {
+                    if (!res.ok) throw new Error("Event not found");
+                    return res.json();
+                })
                 .then(e => {
                     document.getElementById('title').value = e.title;
                     document.getElementById('location').value = e.location;
                     document.getElementById('description').value = e.description || '';
                     document.getElementById('startDate').value = e.startDate.slice(0, 16);
                     document.getElementById('endDate').value = e.endDate.slice(0, 16);
-                    document.getElementById('maxParticipants').value = e.maxParticipants;
+                    document.getElementById('maxParticipants').value = e.maxParticipants ?? 0;
                     document.getElementById('status').value = e.status;
                     document.getElementById('categoryId').value = e.categoryId;
                     document.getElementById('isPrivate').checked = e.isPrivate;
+                })
+                .catch(err => {
+                    alert("Error loading event.");
+                    console.error(err);
                 });
         }
 
@@ -123,14 +130,20 @@
             const payload = {
                 title: document.getElementById('title').value,
                 location: document.getElementById('location').value,
-                description: document.getElementById('description').value,
+                description: document.getElementById('description').value || '',
                 startDate: new Date(document.getElementById('startDate').value).toISOString(),
                 endDate: new Date(document.getElementById('endDate').value).toISOString(),
-                maxParticipants: parseInt(document.getElementById('maxParticipants').value),
+                maxParticipants: parseInt(document.getElementById('maxParticipants').value) || 0,
                 status: parseInt(document.getElementById('status').value),
                 categoryId: parseInt(document.getElementById('categoryId').value),
                 isPrivate: document.getElementById('isPrivate').checked
             };
+
+            // Simple validation
+            if (!payload.title || !payload.location || !payload.startDate || !payload.endDate || !payload.categoryId) {
+                alert("Please fill in all required fields.");
+                return;
+            }
 
             const method = id ? 'PUT' : 'POST';
             const url = id ? `/api/event/${id}` : '/api/event';
@@ -144,8 +157,12 @@
                 body: JSON.stringify(payload)
             });
 
-            if (res.ok) window.location.href = 'index.html';
-            else alert('Failed to save event.');
+            if (res.ok) {
+                window.location.href = 'index.html';
+            } else {
+                const errText = await res.text();
+                alert(`Failed to save event: ${errText}`);
+            }
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

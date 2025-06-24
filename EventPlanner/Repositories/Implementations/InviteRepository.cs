@@ -1,5 +1,4 @@
 ﻿using EventPlanner.Data;
-using EventPlanner.DTOs.Invite;
 using EventPlanner.Enums;
 using EventPlanner.Models;
 using EventPlanner.Repositories.Interfaces;
@@ -10,10 +9,12 @@ namespace EventPlanner.Repositories.Implementations
     public class InviteRepository : IInviteRepository
     {
         private readonly ApplicationDbContext _context;
+
         public InviteRepository(ApplicationDbContext context)
         {
             _context = context;
         }
+
         public async Task<Invite> GetInviteByIdAsync(int inviteId)
         {
             return await _context.Invites
@@ -23,13 +24,15 @@ namespace EventPlanner.Repositories.Implementations
                 .AsNoTracking()
                 .FirstOrDefaultAsync(i => i.Id == inviteId);
         }
+
         public async Task<IEnumerable<Invite>> GetAllInvitesAsync()
         {
             return await _context.Invites
-                .Include(i => i.Event)
-                .Include(i => i.Invitee)
-                .AsNoTracking()
-                .ToListAsync();
+          .Include(i => i.Event)
+          .Include(i => i.Inviter)  
+          .Include(i => i.Invitee)
+          .AsNoTracking()
+          .ToListAsync();
         }
 
         public async Task AddInviteAsync(Invite invite)
@@ -37,11 +40,13 @@ namespace EventPlanner.Repositories.Implementations
             await _context.Invites.AddAsync(invite);
             await _context.SaveChangesAsync();
         }
+
         public async Task UpdateInviteAsync(Invite invite)
         {
             _context.Invites.Update(invite);
             await _context.SaveChangesAsync();
         }
+
         public async Task DeleteInviteAsync(int inviteId)
         {
             var invite = await GetInviteByIdAsync(inviteId);
@@ -51,11 +56,14 @@ namespace EventPlanner.Repositories.Implementations
                 await _context.SaveChangesAsync();
             }
         }
-        //Additional
+
         public async Task<IEnumerable<Invite>> GetPendingInvitesByUserIdAsync(string userId)
         {
             return await _context.Invites
                 .Where(i => i.InviteeId == userId && i.Status == InviteStatus.Pending)
+                .Include(i => i.Inviter)
+                .Include(i => i.Invitee)
+                .Include(i => i.Event)
                 .AsNoTracking()
                 .ToListAsync();
         }
@@ -63,9 +71,11 @@ namespace EventPlanner.Repositories.Implementations
         public async Task<Invite?> GetByInviteeAndEventAsync(string inviteeId, int eventId)
         {
             return await _context.Invites
+                .Include(i => i.Inviter)
+                .Include(i => i.Invitee)
+                .Include(i => i.Event)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(i => i.InviteeId == inviteeId.ToString() && i.EventId == eventId);
+                .FirstOrDefaultAsync(i => i.InviteeId == inviteeId && i.EventId == eventId);
         }
-
     }
 }

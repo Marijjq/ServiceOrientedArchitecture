@@ -31,24 +31,7 @@ namespace EventPlanner.Services.Implementations
         public async Task<IEnumerable<InviteDTO>> GetAllInvitesAsync()
         {
             var invites = await _inviteRepository.GetAllInvitesAsync();
-
-            var result = invites.Select(invite => new InviteDTO
-            {
-                Id = invite.Id,
-                EventId = invite.EventId,
-                EventTitle = invite.Event?.Title ?? "N/A",
-                InviterId = invite.InviterId.ToString(),
-                InviterName = invite.Inviter != null ? $"{invite.Inviter.FirstName} {invite.Inviter.LastName}" : "N/A",
-                InviteeId = invite.InviteeId.ToString(),
-                InviteeName = invite.Invitee != null ? $"{invite.Invitee.FirstName} {invite.Invitee.LastName}" : "N/A",
-                Message = invite.Message,
-                Status = invite.Status,
-                SentAt = invite.SentAt,
-                RespondedAt = invite.RespondedAt,
-                ExpiresAt = invite.ExpiresAt
-            });
-
-            return result.ToList();
+            return _mapper.Map<IEnumerable<InviteDTO>>(invites);
         }
 
         public async Task<InviteDTO> SendInviteAsync(InviteCreateDTO inviteDto)
@@ -118,7 +101,8 @@ namespace EventPlanner.Services.Implementations
                 }
             }
 
-            return _mapper.Map<IEnumerable<InviteDTO>>(invites.Where(i => i.Status == InviteStatus.Pending));
+            var pending = invites.Where(i => i.Status == InviteStatus.Pending);
+            return _mapper.Map<IEnumerable<InviteDTO>>(pending);
         }
 
         public async Task<InviteDTO?> GetByInviteeAndEventAsync(string inviteeId, int eventId)

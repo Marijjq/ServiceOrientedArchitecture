@@ -18,7 +18,6 @@ namespace EventPlanner.Controllers
             _inviteService = inviteService;
         }
 
-        // ✅ Admin/Organizer: Get all invites
         [HttpGet]
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<IActionResult> GetAllInvites()
@@ -27,7 +26,6 @@ namespace EventPlanner.Controllers
             return Ok(invites);
         }
 
-        // ✅ Any authorized user: Get a single invite by ID
         [HttpGet("{id}")]
         public async Task<IActionResult> GetInviteById(int id)
         {
@@ -38,7 +36,6 @@ namespace EventPlanner.Controllers
             return Ok(invite);
         }
 
-        // ✅ Admin/Organizer: Send an invite
         [HttpPost]
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<IActionResult> SendInvite([FromBody] InviteCreateDTO inviteDto)
@@ -50,11 +47,10 @@ namespace EventPlanner.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new { message = ex.Message });
             }
         }
 
-        // ✅ Admin/Organizer: Update an invite
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin,Organizer")]
         public async Task<IActionResult> UpdateInvite(int id, [FromBody] InviteUpdateDTO inviteDto)
@@ -70,7 +66,6 @@ namespace EventPlanner.Controllers
             }
         }
 
-        // ✅ Admin only: Delete invite
         [HttpDelete("{id}")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeleteInvite(int id)
@@ -86,19 +81,19 @@ namespace EventPlanner.Controllers
             }
         }
 
-        // ✅ Get pending invites (user can only see their own unless Admin or Organizer)
         [HttpGet("user/{userId}/pending")]
         public async Task<IActionResult> GetPendingInvitesByUserId(string userId)
         {
-            var currentUserId = User.FindFirst("id")?.Value;
+            var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             var isAdmin = User.IsInRole("Admin");
-            var isOrganizer = User.IsInRole("Organizer");
 
-            if (currentUserId != userId && !isAdmin && !isOrganizer)
-                return Forbid();
+            // Only Admins can view other users' invites
+            if (!isAdmin && userId != currentUserId)
+                return StatusCode(403, "You can only view your own invitations.");
 
             var invites = await _inviteService.GetPendingInvitesByUserIdAsync(userId);
             return Ok(invites);
         }
+
     }
 }

@@ -31,7 +31,6 @@ namespace EventPlanner.Services.Implementations
 
             return _mapper.Map<RsvpDTO>(rsvp);
         }
-
         public async Task<IEnumerable<RsvpDTO>> GetAllRsvpsAsync()
         {
             var rsvps = await _rsvpRepository.GetAllRsvpsAsync();
@@ -39,8 +38,7 @@ namespace EventPlanner.Services.Implementations
             return rsvps.Select(r => new RsvpDTO
             {
                 Id = r.Id,
-                UserId = r.UserId,
-                UserName = r.User?.FirstName + " " + r.User?.LastName, // assumes navigation property
+                UserName = r.User?.FirstName + " " + r.User?.LastName,
                 EventId = r.EventId,
                 EventTitle = r.Event?.Title,
                 Status = r.Status,
@@ -48,6 +46,7 @@ namespace EventPlanner.Services.Implementations
                 UpdatedAt = r.UpdatedAt
             });
         }
+
 
         public async Task<IEnumerable<RsvpDTO>> GetRsvpsByEventIdAsync(int eventId)
         {
@@ -175,15 +174,21 @@ namespace EventPlanner.Services.Implementations
 
             await _rsvpRepository.AddRsvpAsync(rsvp);
 
-            invite.Status = responseStatus == RSVPStatus.Going
-                ? InviteStatus.Accepted
-                : InviteStatus.Declined;
-
+            invite.Status = responseStatus switch
+            {
+                RSVPStatus.Accepted => InviteStatus.Accepted,
+                RSVPStatus.Going => InviteStatus.Accepted,
+                RSVPStatus.Declined => InviteStatus.Declined,
+                RSVPStatus.Maybe => InviteStatus.Maybe,
+                RSVPStatus.Pending => InviteStatus.Pending,
+                _ => InviteStatus.Pending
+            };
             invite.RespondedAt = DateTime.UtcNow;
             await _inviteRepository.UpdateInviteAsync(invite);
 
             return _mapper.Map<RsvpDTO>(rsvp);
         }
+
 
         public async Task<bool> UpdateStatusAsync(int id, RSVPStatus status)
         {

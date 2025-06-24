@@ -19,7 +19,7 @@
         </div>
 
         <div class="table-responsive">
-            <table class="table table-bordered table-hover">
+            <table class="table table-bordered table-hover text-center">
                 <thead class="table-primary">
                     <tr>
                         <th>ID</th>
@@ -32,7 +32,12 @@
                     </tr>
                 </thead>
                 <tbody id="rsvpTableBody">
-                    <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                    <tr>
+                        <td colspan="7" class="text-center">
+                            <div class="spinner-border text-primary" role="status"></div>
+                            <span class="ms-2">Loading...</span>
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -55,6 +60,7 @@
                 renderRsvps(allRsvps);
             } catch {
                 alert("Failed to fetch RSVP list.");
+                document.getElementById("rsvpTableBody").innerHTML = '<tr><td colspan="7" class="text-danger text-center">Failed to load data.</td></tr>';
             }
         });
 
@@ -68,17 +74,33 @@
             tbody.innerHTML = rsvps.map(rsvp => `
                     <tr>
                         <td>${rsvp.id}</td>
-                        <td>${rsvp.eventTitle}</td>
-                        <td>${rsvp.userName}</td>
-                        <td>${rsvp.status}</td>
-                        <td>${new Date(rsvp.createdAt).toLocaleString()}</td>
-                        <td>${rsvp.updatedAt ? new Date(rsvp.updatedAt).toLocaleString() : "-"}</td>
+                        <td>${rsvp.eventTitle || 'N/A'}</td>
+                        <td>${rsvp.userName || 'N/A'}</td>
+                        <td><span class="badge bg-${getStatusColor(rsvp.status)}">${rsvp.status}</span></td>
+                        <td>${formatDate(rsvp.createdAt)}</td>
+                        <td>${rsvp.updatedAt ? formatDate(rsvp.updatedAt) : "-"}</td>
                         <td>
                             <a href="/html/rsvps/form.html?id=${rsvp.id}" class="btn btn-sm btn-primary">Edit</a>
                             <button class="btn btn-sm btn-danger ms-1" onclick="deleteRsvp(${rsvp.id})">Delete</button>
                         </td>
                     </tr>
                 `).join('');
+        }
+
+        function getStatusColor(status) {
+            switch ((status || "").toLowerCase()) {
+                case "accepted":
+                case "going": return "success";
+                case "maybe": return "warning";
+                case "declined": return "danger";
+                case "pending": return "secondary";
+                default: return "dark";
+            }
+        }
+
+        function formatDate(dateStr) {
+            const d = new Date(dateStr);
+            return d.toLocaleString();
         }
 
         async function deleteRsvp(id) {
@@ -90,8 +112,12 @@
                     method: "DELETE",
                     headers: { Authorization: `Bearer ${token}` }
                 });
-                if (res.ok) location.reload();
-                else alert("Delete failed.");
+                if (res.ok) {
+                    allRsvps = allRsvps.filter(r => r.id !== id);
+                    renderRsvps(allRsvps);
+                } else {
+                    alert("Delete failed.");
+                }
             } catch {
                 alert("Error deleting RSVP.");
             }
@@ -100,9 +126,9 @@
         document.getElementById("searchInput").addEventListener("input", function () {
             const query = this.value.toLowerCase();
             const filtered = allRsvps.filter(rsvp =>
-                rsvp.eventTitle.toLowerCase().includes(query) ||
-                rsvp.userName.toLowerCase().includes(query) ||
-                rsvp.status.toLowerCase().includes(query)
+                (rsvp.eventTitle || "").toLowerCase().includes(query) ||
+                (rsvp.userName || "").toLowerCase().includes(query) ||
+                (rsvp.status || "").toLowerCase().includes(query)
             );
             renderRsvps(filtered);
         });
